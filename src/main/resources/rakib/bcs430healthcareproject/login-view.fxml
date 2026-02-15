@@ -22,7 +22,7 @@
                     <Insets top="26" right="26" bottom="26" left="26"/>
                 </padding>
 
-                <Label text="Welcome Back" styleClass="title"/>
+                <Label text="Welcome!" styleClass="title"/>
                 <Label text="Log in to continue" styleClass="subtitle"/>
 
                 <VBox spacing="8">

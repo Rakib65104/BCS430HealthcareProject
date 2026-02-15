@@ -6,13 +6,14 @@ public class SignupRoleController {
 
     @FXML
     private void onPatient() {
-        System.out.println("Patient selected (next: patient signup screen)");
+        SceneRouter.go("patient-signup-view.fxml", "Patient Sign Up");
     }
 
     @FXML
     private void onDoctor() {
-        System.out.println("Doctor selected (next: doctor signup screen)");
+        SceneRouter.go("doctor-signup-view.fxml", "Doctor Sign Up");
     }
+
 
     @FXML
     private void onBack() {

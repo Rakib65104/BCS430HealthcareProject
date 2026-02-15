@@ -15,17 +15,23 @@ public final class SceneRouter {
 
     public static void init(Stage primaryStage) {
         stage = primaryStage;
-        stage.setMinWidth(900);
-        stage.setMinHeight(600);
+
+        stage.setWidth(1000);
+        stage.setHeight(650);
+
+        stage.setMinWidth(1000);
+        stage.setMinHeight(650);
+
+        stage.setResizable(false);
     }
 
     public static void go(String fxmlFileName, String title) {
+
         try {
-            // resources are in: src/main/resources/rakib.healthcareproject/
             String path = Objects.requireNonNull(SceneRouter.class.getResource(fxmlFileName)).toExternalForm();
             Parent root = FXMLLoader.load(Objects.requireNonNull(SceneRouter.class.getResource(fxmlFileName)));
 
-            Scene scene = new Scene(root);
+            Scene scene = new Scene(root, 1000, 650);
             scene.getStylesheets().add(Objects.requireNonNull(SceneRouter.class.getResource("app.css")).toExternalForm());
 
             stage.setTitle(title);

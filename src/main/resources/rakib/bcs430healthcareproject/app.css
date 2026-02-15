@@ -1,0 +1,79 @@
+.root {
+    -fx-background-color: #0f172a;
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.card {
+    -fx-background-color: rgba(255,255,255,0.08);
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+    -fx-border-color: rgba(255,255,255,0.12);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 20, 0.2, 0, 8);
+}
+
+.title {
+    -fx-font-size: 26px;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+}
+
+.subtitle, .muted {
+    -fx-text-fill: rgba(255,255,255,0.72);
+}
+
+.label {
+    -fx-text-fill: rgba(255,255,255,0.85);
+}
+
+.text-field, .password-field {
+    -fx-background-color: rgba(255,255,255,0.10);
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-color: rgba(255,255,255,0.14);
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: rgba(255,255,255,0.45);
+    -fx-padding: 10 12 10 12;
+}
+
+.primary-btn {
+    -fx-background-color: #22c55e;
+    -fx-text-fill: #062312;
+    -fx-font-weight: 700;
+    -fx-background-radius: 12;
+    -fx-padding: 10 12 10 12;
+    -fx-cursor: hand;
+}
+
+.ghost-btn {
+    -fx-background-color: rgba(255,255,255,0.10);
+    -fx-text-fill: white;
+    -fx-font-weight: 600;
+    -fx-background-radius: 12;
+    -fx-padding: 10 12 10 12;
+    -fx-cursor: hand;
+    -fx-border-color: rgba(255,255,255,0.14);
+    -fx-border-radius: 12;
+}
+
+.choice-card {
+    -fx-background-color: rgba(255,255,255,0.06);
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-border-color: rgba(255,255,255,0.12);
+    -fx-padding: 16;
+}
+
+.choice-title {
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+}
+
+.error {
+    -fx-text-fill: #fb7185;
+    -fx-font-weight: 600;
+}
+
+.row-center {
+    -fx-alignment: center;
+}

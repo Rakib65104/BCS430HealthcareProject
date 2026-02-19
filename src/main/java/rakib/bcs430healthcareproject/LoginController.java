@@ -37,23 +37,43 @@ public class LoginController {
             return;
         }
 
-        // Show loading status
+        // Show loading status and disable button temporarily
         showError("Logging in...");
         
         // Authenticate user with Firebase
         firebaseService.authenticateUser(email, pass)
                 .thenAccept(uid -> {
-                    // Success: Run on JavaFX thread
-                    Platform.runLater(() -> {
-                        System.out.println("User logged in with UID: " + uid);
-                        // Route to patient dashboard
-                        SceneRouter.go("patient-dashboard-view.fxml", "Patient Dashboard");
-                    });
+                    System.out.println("Authentication successful, UID: " + uid);
+                    
+                    // Load the user's profile from Firestore
+                    firebaseService.getPatientProfile(uid)
+                            .thenAccept(profile -> {
+                                // Success: Run on JavaFX thread
+                                Platform.runLater(() -> {
+                                    System.out.println("Profile loaded successfully for UID: " + uid);
+                                    
+                                    // Store user context for the dashboard
+                                    UserContext userContext = UserContext.getInstance();
+                                    userContext.setUserData(uid, profile);
+                                    
+                                    // Route to patient dashboard
+                                    SceneRouter.go("patient-dashboard-view.fxml", "Patient Dashboard");
+                                });
+                            })
+                            .exceptionally(e -> {
+                                // Profile load failed
+                                Platform.runLater(() -> {
+                                    System.err.println("Failed to load profile: " + e.getMessage());
+                                    showError("Failed to load profile: " + e.getMessage());
+                                });
+                                return null;
+                            });
                 })
-                .exceptionally(throwable -> {
-                    // Failure: Run on JavaFX thread
+                .exceptionally(e -> {
+                    // Authentication failed
                     Platform.runLater(() -> {
-                        showError(throwable.getMessage());
+                        System.err.println("Authentication failed: " + e.getMessage());
+                        showError(e.getMessage());
                     });
                     return null;
                 });

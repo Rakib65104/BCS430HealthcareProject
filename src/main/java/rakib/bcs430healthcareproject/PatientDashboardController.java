@@ -27,11 +27,31 @@ public class PatientDashboardController {
     public void initialize() {
         firebaseService = new FirebaseService();
         
-        // TODO: Load patient data from Firebase
-        // For now, show placeholder values
-        welcomeLabel.setText("Welcome to Your Patient Dashboard");
-        patientNameLabel.setText("Patient Name: [Loading...]");
-        patientEmailLabel.setText("Email: [Loading...]");
+        // Load current user data from session
+        UserContext userContext = UserContext.getInstance();
+        
+        if (userContext.isLoggedIn()) {
+            PatientProfile profile = userContext.getProfile();
+            String uid = userContext.getUid();
+            
+            System.out.println("Loading dashboard for user: " + uid);
+            
+            if (profile != null) {
+                String displayName = profile.getName() != null ? profile.getName() : "Patient";
+                welcomeLabel.setText("Welcome Back, " + displayName);
+                patientNameLabel.setText("Patient Name: " + displayName);
+                patientEmailLabel.setText("Email: " + profile.getEmail());
+            } else {
+                welcomeLabel.setText("Welcome to Your Patient Dashboard");
+                patientNameLabel.setText("Patient Name: [Not loaded]");
+                patientEmailLabel.setText("Email: [Not loaded]");
+            }
+        } else {
+            // User not logged in, show defaults
+            welcomeLabel.setText("Welcome to Your Patient Dashboard");
+            patientNameLabel.setText("Patient Name: [Not loaded]");
+            patientEmailLabel.setText("Email: [Not loaded]");
+        }
     }
 
     @FXML
@@ -51,13 +71,14 @@ public class PatientDashboardController {
     @FXML
     private void onProfile() {
         System.out.println("Navigating to profile...");
-        // TODO: Implement profile view
-        // SceneRouter.go("patient-profile-view.fxml", "My Profile");
+        SceneRouter.go("patient-profile-view.fxml", "My Profile");
     }
 
     @FXML
     private void onLogout() {
         System.out.println("Logging out...");
+        UserContext userContext = UserContext.getInstance();
+        userContext.clearUserData();
         SceneRouter.go("login-view.fxml", "Login");
     }
 }

@@ -1,10 +1,13 @@
 package rakib.bcs430healthcareproject;
 
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QuerySnapshot;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.cloud.FirestoreClient;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -16,26 +19,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import javax.net.ssl.HttpsURLConnection;
 
 /**
  * Service class for Firebase operations related to patient account management.
- * Handles user creation in Firebase Authentication and patient profile storage in Realtime Database.
+ * Handles user creation in Firebase Authentication and patient profile storage in Firestore.
+ * Uses custom password hashing for login without requiring Firebase Web API Key.
  */
 public class FirebaseService {
 
     private final FirebaseAuth auth;
-    private final DatabaseReference database;
+    private final Firestore firestore;
+    private static final String PATIENTS_COLLECTION = "patients";
+    private static final String USERS_COLLECTION = "users";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
-        this.database = FirebaseDatabase.getInstance().getReference();
+        this.firestore = FirestoreClient.getFirestore();
     }
 
     /**
      * Creates a patient account in Firebase.
      * 1. Creates a new user in Firebase Authentication with email and password
-     * 2. Stores patient profile data (name, zip, role) in Realtime Database
+     * 2. Stores patient profile data with hashed password in Firestore
      *
      * @param email    Patient's email address
      * @param password Patient's password (must be at least 6 characters)
@@ -56,50 +63,142 @@ public class FirebaseService {
                 UserRecord userRecord = auth.createUser(request);
                 String uid = userRecord.getUid();
 
-                // Step 2: Store patient profile in Realtime Database
-                Map<String, Object> patientProfile = new HashMap<>();
-                patientProfile.put("uid", uid);
-                patientProfile.put("name", name);
-                patientProfile.put("email", email);
-                patientProfile.put("zip", zip);
-                patientProfile.put("role", "PATIENT");
-                patientProfile.put("createdAt", System.currentTimeMillis());
-
-                // Store under /patients/{uid} with completion listener
-                database.child("patients").child(uid).setValue(
-                        patientProfile,
-                        (error, ref) -> {
-                            if (error != null) {
-                                System.err.println("Failed to save patient profile: " + error.getMessage());
-                            } else {
-                                System.out.println("Patient profile saved to database");
-                            }
-                        }
-                );
-
+                // Step 2: Create PatientProfile with hashed password and store in Firestore
+                PatientProfile profile = new PatientProfile(uid, name, email, zip);
+                
+                // Hash password for storage
+                String passwordSalt = PasswordHasher.generateSalt();
+                String passwordHash = PasswordHasher.hashPassword(password, passwordSalt);
+                profile.setPasswordHash(passwordHash);
+                profile.setPasswordSalt(passwordSalt);
+                
+                // Store under /patients/{uid}
+                ApiFuture<?> future = firestore.collection(PATIENTS_COLLECTION).document(uid).set(profile);
+                future.get(); // Wait for completion
+                
                 System.out.println("Patient created successfully with UID: " + uid);
                 return uid;
 
             } catch (FirebaseAuthException e) {
                 String errorMessage = handleAuthException(e);
                 throw new RuntimeException(errorMessage);
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException("Failed to save patient profile: " + e.getMessage(), e);
             }
         });
     }
 
     /**
-     * Retrieves a patient's profile from the database.
+     * Authenticates a patient with email and password using custom Firestore verification.
+     * NO EXTERNAL API KEY REQUIRED - uses local Firebase Admin SDK only.
+     *
+     * @param email    Patient's email
+     * @param password Patient's password
+     * @return CompletableFuture containing the patient's UID on successful authentication
+     */
+    public CompletableFuture<String> authenticateUser(String email, String password) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("Authenticating user with email: " + email);
+                
+                // Query Firestore for user by email
+                ApiFuture<QuerySnapshot> query = firestore.collection(PATIENTS_COLLECTION)
+                        .whereEqualTo("email", email)
+                        .get();
+                
+                QuerySnapshot querySnapshot = query.get();
+                
+                if (querySnapshot.isEmpty()) {
+                    throw new RuntimeException("No account found with this email address.");
+                }
+                
+                if (querySnapshot.size() > 1) {
+                    throw new RuntimeException("Multiple accounts found with this email. Please contact support.");
+                }
+                
+                // Get the patient profile
+                DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                PatientProfile profile = document.toObject(PatientProfile.class);
+                
+                if (profile == null) {
+                    throw new RuntimeException("Failed to load patient profile.");
+                }
+                
+                // Verify password
+                if (profile.getPasswordHash() == null || profile.getPasswordSalt() == null) {
+                    throw new RuntimeException("Account security data not found. Please contact support.");
+                }
+                
+                boolean passwordMatches = PasswordHasher.verifyPassword(
+                        password, 
+                        profile.getPasswordHash(), 
+                        profile.getPasswordSalt()
+                );
+                
+                if (!passwordMatches) {
+                    throw new RuntimeException("Invalid email or password.");
+                }
+                
+                String uid = profile.getUid();
+                System.out.println("User authenticated successfully with UID: " + uid);
+                return uid;
+                
+            } catch (ExecutionException | InterruptedException e) {
+                System.err.println("Authentication database error: " + e.getMessage());
+                throw new RuntimeException("Authentication failed: Database error - " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                System.err.println("Authentication failed: " + e.getMessage());
+                throw e;
+            } catch (Exception e) {
+                System.err.println("Unexpected authentication error: " + e.getMessage());
+                throw new RuntimeException("Authentication error: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Retrieves a patient's profile from Firestore.
      *
      * @param uid Patient's UID
      * @return CompletableFuture containing the patient profile data
      */
-    public CompletableFuture<Map<String, Object>> getPatientProfile(String uid) {
+    public CompletableFuture<PatientProfile> getPatientProfile(String uid) {
         return CompletableFuture.supplyAsync(() -> {
-            // This is a placeholder for getting data
-            // In a real implementation, you would retrieve from database
-            Map<String, Object> patientData = new HashMap<>();
-            patientData.put("uid", uid);
-            return patientData;
+            try {
+                ApiFuture<DocumentSnapshot> future = firestore.collection(PATIENTS_COLLECTION).document(uid).get();
+                DocumentSnapshot document = future.get();
+                
+                if (document.exists()) {
+                    PatientProfile profile = document.toObject(PatientProfile.class);
+                    System.out.println("Patient profile loaded for UID: " + uid);
+                    return profile;
+                } else {
+                    throw new RuntimeException("Patient profile not found");
+                }
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException("Failed to retrieve patient profile: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Updates a patient's profile in Firestore.
+     *
+     * @param uid Patient's UID
+     * @param profile Updated patient profile
+     * @return CompletableFuture that completes when the update is done
+     */
+    public CompletableFuture<Void> updatePatientProfile(String uid, PatientProfile profile) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                profile.setUpdatedAt(System.currentTimeMillis());
+                ApiFuture<?> future = firestore.collection(PATIENTS_COLLECTION).document(uid).set(profile);
+                future.get(); // Wait for completion
+                System.out.println("Patient profile updated for UID: " + uid);
+                return null;
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException("Failed to update patient profile: " + e.getMessage(), e);
+            }
         });
     }
 
@@ -128,88 +227,7 @@ public class FirebaseService {
     }
 
     /**
-     * Authenticates a user with email and password using Firebase REST API.
-     * Verifies credentials and returns the user's UID if authentication is successful.
-     *
-     * @param email User's email
-     * @param password User's password
-     * @return CompletableFuture containing the user's UID on successful authentication
-     */
-    public CompletableFuture<String> authenticateUser(String email, String password) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                // Firebase REST API endpoint for sign in
-                String apiKey = getFirebaseApiKey();
-                String url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + apiKey;
-
-                // Create request body
-                Gson gson = new Gson();
-                JsonObject requestBody = new JsonObject();
-                requestBody.addProperty("email", email);
-                requestBody.addProperty("password", password);
-                requestBody.addProperty("returnSecureToken", true);
-
-                String jsonPayload = gson.toJson(requestBody);
-
-                // Send HTTP POST request
-                HttpsURLConnection connection = (HttpsURLConnection) new URL(url).openConnection();
-                connection.setRequestMethod("POST");
-                connection.setRequestProperty("Content-Type", "application/json");
-                connection.setDoOutput(true);
-
-                try (OutputStream os = connection.getOutputStream()) {
-                    os.write(jsonPayload.getBytes(StandardCharsets.UTF_8));
-                }
-
-                // Read response
-                int responseCode = connection.getResponseCode();
-                String response;
-
-                try (Scanner scanner = new Scanner(connection.getInputStream())) {
-                    response = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
-                }
-
-                if (responseCode == 200) {
-                    // Parse response to extract UID
-                    JsonObject responseObj = gson.fromJson(response, JsonObject.class);
-                    String uid = responseObj.get("localId").getAsString();
-                    System.out.println("User authenticated successfully with UID: " + uid);
-                    return uid;
-                } else {
-                    // Error response
-                    try (Scanner scanner = new Scanner(connection.getErrorStream())) {
-                        String errorResponse = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
-                        JsonObject errorObj = gson.fromJson(errorResponse, JsonObject.class);
-                        JsonObject error = errorObj.getAsJsonObject("error");
-                        String message = error.get("message").getAsString();
-                        throw new RuntimeException(handleAuthError(message));
-                    }
-                }
-
-            } catch (IOException e) {
-                throw new RuntimeException("Authentication failed: " + e.getMessage(), e);
-            } catch (Exception e) {
-                throw new RuntimeException("Authentication error: " + e.getMessage(), e);
-            }
-        });
-    }
-
-    /**
-     * Retrieves the Firebase API key from the project configuration.
-     * This is extracted from the initialized Firebase app.
-     *
-     * @return Firebase API Key for REST API calls
-     */
-    private String getFirebaseApiKey() {
-        // The Firebase API key is typically found in the Firebase Console
-        // For this implementation, we'll use a hardcoded key or extract from project
-        // You should replace this with your actual Firebase API key
-        // Find this at: Firebase Console → Project Settings → General → Web API Key
-        return "AIzaSyDcxHnS1oHPY7V8_5vVz6F1r8K3Q2L9M8N"; // Replace with your actual API key
-    }
-
-    /**
-     * Handles Firebase authentication error messages.
+     * Handles Firebase authentication error messages from REST API.
      *
      * @param errorMessage Error message from Firebase
      * @return User-friendly error message
@@ -229,3 +247,4 @@ public class FirebaseService {
         return "Login failed: " + errorMessage;
     }
 }
+

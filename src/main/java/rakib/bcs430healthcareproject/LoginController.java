@@ -41,43 +41,43 @@ public class LoginController {
         showError("Logging in...");
         
         // Authenticate user with Firebase
-        firebaseService.authenticateUser(email, pass)
-                .thenAccept(uid -> {
-                    System.out.println("Authentication successful, UID: " + uid);
-                    
-                    // Load the user's profile from Firestore
-                    firebaseService.getPatientProfile(uid)
-                            .thenAccept(profile -> {
-                                // Success: Run on JavaFX thread
-                                Platform.runLater(() -> {
-                                    System.out.println("Profile loaded successfully for UID: " + uid);
-                                    
-                                    // Store user context for the dashboard
-                                    UserContext userContext = UserContext.getInstance();
-                                    userContext.setUserData(uid, profile);
-                                    
-                                    // Route to patient dashboard
+        firebaseService.authenticateAnyUser(email, pass)
+                .thenAccept(result -> {
+                    System.out.println("Authentication successful. UID=" + result.getUid() + " ROLE=" + result.getRole());
+
+                    if ("PATIENT".equals(result.getRole())) {
+
+                        // Load patient profile then route
+                        firebaseService.getPatientProfile(result.getUid())
+                                .thenAccept(profile -> Platform.runLater(() -> {
+                                    UserContext.getInstance().setUserData(result.getUid(), profile);
                                     SceneRouter.go("patient-dashboard-view.fxml", "Patient Dashboard");
+                                }))
+                                .exceptionally(e -> {
+                                    Platform.runLater(() -> showError("Failed to load patient profile: " + e.getMessage()));
+                                    return null;
                                 });
-                            })
-                            .exceptionally(e -> {
-                                // Profile load failed
-                                Platform.runLater(() -> {
-                                    System.err.println("Failed to load profile: " + e.getMessage());
-                                    showError("Failed to load profile: " + e.getMessage());
+
+                    } else {
+
+                        // Load doctor profile then route
+                        firebaseService.getDoctorProfile(result.getUid())
+                                .thenAccept(doctorProfile -> Platform.runLater(() -> {
+                                    UserContext.getInstance().setDoctorUserData(result.getUid(), doctorProfile);
+                                    SceneRouter.go("doctor-dashboard-view.fxml", "Doctor Dashboard");
+                                }))
+                                .exceptionally(e -> {
+                                    Platform.runLater(() -> showError("Failed to load doctor profile: " + e.getMessage()));
+                                    return null;
                                 });
-                                return null;
-                            });
+                    }
                 })
                 .exceptionally(e -> {
-                    // Authentication failed
-                    Platform.runLater(() -> {
-                        System.err.println("Authentication failed: " + e.getMessage());
-                        showError(e.getMessage());
-                    });
+                    Platform.runLater(() -> showError(e.getMessage()));
                     return null;
                 });
     }
+
 
     @FXML
     private void onGoSignup() {

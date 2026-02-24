@@ -7,7 +7,9 @@ package rakib.bcs430healthcareproject;
 public class UserContext {
     private static UserContext instance;
     private String uid;
-    private PatientProfile profile;
+    private String role;
+    private PatientProfile patientProfile;
+    private DoctorProfile doctorProfile;
 
     private UserContext() {}
 
@@ -20,35 +22,85 @@ public class UserContext {
 
     public void setUserData(String uid, PatientProfile profile) {
         this.uid = uid;
-        this.profile = profile;
+        this.role = "PATIENT";
+        this.patientProfile = profile;
+        this.doctorProfile = null;
+    }
+    public void setDoctorUserData(String uid, DoctorProfile profile) {
+        this.uid = uid;
+        this.role = "DOCTOR";
+        this.doctorProfile = profile;
+        this.patientProfile = null;
     }
 
     public void clearUserData() {
         this.uid = null;
-        this.profile = null;
+        this.role = null;
+        this.patientProfile = null;
+        this.doctorProfile = null;
     }
 
     public String getUid() {
         return uid;
     }
 
-    public PatientProfile getProfile() {
-        return profile;
+    public String getRole() {
+        return role;
     }
 
-    public String getEmail() {
-        return profile != null ? profile.getEmail() : null;
+    public boolean isPatient() {
+        return "PATIENT".equals(role);
     }
 
-    public String getName() {
-        return profile != null ? profile.getName() : null;
+    public boolean isDoctor() {
+        return "DOCTOR".equals(role);
     }
 
     public boolean isLoggedIn() {
-        return uid != null;
+        return uid != null && role != null;
     }
 
-    public void updateProfile(PatientProfile updatedProfile) {
-        this.profile = updatedProfile;
+    public PatientProfile getProfile() {
+        return patientProfile;
+    }
+
+    public DoctorProfile getDoctorProfile() {
+        return doctorProfile;
+    }
+
+    public String getEmail() {
+        if (isPatient() && patientProfile != null) {
+            return patientProfile.getEmail();
+        }
+        if (isDoctor() && doctorProfile != null) {
+            return doctorProfile.getEmail();
+        }
+        return null;
+    }
+
+    public String getName() {
+        if (isPatient() && patientProfile != null) {
+            return patientProfile.getName();
+        }
+        if (isDoctor() && doctorProfile != null) {
+            return doctorProfile.getName();
+        }
+        return null;
+    }
+
+    /* =======================
+       UPDATE METHODS
+       ======================= */
+
+    public void updatePatientProfile(PatientProfile updatedProfile) {
+        if (isPatient()) {
+            this.patientProfile = updatedProfile;
+        }
+    }
+
+    public void updateDoctorProfile(DoctorProfile updatedProfile) {
+        if (isDoctor()) {
+            this.doctorProfile = updatedProfile;
+        }
     }
 }

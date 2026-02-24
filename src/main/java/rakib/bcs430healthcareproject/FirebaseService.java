@@ -33,6 +33,7 @@ public class FirebaseService {
     private final Firestore firestore;
     private static final String PATIENTS_COLLECTION = "patients";
     private static final String USERS_COLLECTION = "users";
+    private static final String DOCTORS_COLLECTION = "doctors";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
@@ -51,6 +52,7 @@ public class FirebaseService {
      * @return CompletableFuture containing the patient ID (UID) on success
      * @throws RuntimeException if patient creation fails
      */
+
     public CompletableFuture<String> createPatient(String email, String password, String name, String zip) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -84,6 +86,152 @@ public class FirebaseService {
                 throw new RuntimeException(errorMessage);
             } catch (ExecutionException | InterruptedException e) {
                 throw new RuntimeException("Failed to save patient profile: " + e.getMessage(), e);
+            }
+        });
+    }
+    public CompletableFuture<String> createDoctor(
+            String email,
+            String password,
+            String name,
+            String specialty,
+            String clinicName,
+            String address,
+            String city,
+            String state,
+            String zip,
+            boolean acceptingNewPatients
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // 1) Create user in Firebase Authentication
+                UserRecord.CreateRequest request = new UserRecord.CreateRequest()
+                        .setEmail(email)
+                        .setPassword(password)
+                        .setDisplayName(name);
+
+                UserRecord userRecord = auth.createUser(request);
+                String uid = userRecord.getUid();
+
+                // 2) Build doctor profile object
+                DoctorProfile profile = new DoctorProfile(
+                        uid,
+                        name,
+                        email,
+                        specialty,
+                        clinicName,
+                        address,
+                        city,
+                        state,
+                        zip,
+                        acceptingNewPatients
+                );
+
+                // 3) Hash password for Firestore storage (same approach as patient)
+                String passwordSalt = PasswordHasher.generateSalt();
+                String passwordHash = PasswordHasher.hashPassword(password, passwordSalt);
+                profile.setPasswordHash(passwordHash);
+                profile.setPasswordSalt(passwordSalt);
+
+                // Ensure timestamps exist even if constructor doesn’t set them
+                profile.setCreatedAt(System.currentTimeMillis());
+                profile.setUpdatedAt(System.currentTimeMillis());
+                profile.setRole("DOCTOR");
+
+                // 4) Save doctor profile under /doctors/{uid}
+                firestore.collection(DOCTORS_COLLECTION).document(uid).set(profile).get();
+
+                // 5) Save a lightweight user record under /users/{uid} for role routing
+                Map<String, Object> userDoc = new HashMap<>();
+                userDoc.put("uid", uid);
+                userDoc.put("name", name);
+                userDoc.put("email", email);
+                userDoc.put("role", "DOCTOR");
+                userDoc.put("createdAt", System.currentTimeMillis());
+
+                firestore.collection(USERS_COLLECTION).document(uid).set(userDoc).get();
+
+                System.out.println("Doctor created successfully with UID: " + uid);
+                return uid;
+
+            } catch (FirebaseAuthException e) {
+                throw new RuntimeException(handleAuthException(e));
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Doctor creation interrupted.", e);
+
+            } catch (ExecutionException e) {
+                throw new RuntimeException("Failed to save doctor profile: " + e.getMessage(), e);
+            }
+        });
+    }
+    public CompletableFuture<String> authenticateDoctor(String email, String password) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("Authenticating doctor with email: " + email);
+
+                ApiFuture<QuerySnapshot> query = firestore.collection(DOCTORS_COLLECTION)
+                        .whereEqualTo("email", email)
+                        .get();
+
+                QuerySnapshot querySnapshot = query.get();
+
+                if (querySnapshot.isEmpty()) {
+                    throw new RuntimeException("No account found with this email address.");
+                }
+
+                DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                System.out.println("Doctor raw data: " + document.getData()); // DEBUG
+
+                DoctorProfile profile = document.toObject(DoctorProfile.class);
+
+                if (profile == null) throw new RuntimeException("Failed to load doctor profile.");
+                if (profile.getPasswordHash() == null || profile.getPasswordSalt() == null)
+                    throw new RuntimeException("Account security data not found.");
+
+                boolean ok = PasswordHasher.verifyPassword(password, profile.getPasswordHash(), profile.getPasswordSalt());
+                if (!ok) throw new RuntimeException("Invalid email or password.");
+
+                return profile.getUid();
+
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException("Authentication failed: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<LoginResult> authenticateAnyUser(String email, String password) {
+
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+
+        // Try PATIENT first
+        return authenticateUser(normalizedEmail, password)
+                .thenApply(uid -> new LoginResult(uid, "PATIENT"))
+                .handle((result, ex) -> result)  // if patient fails, result becomes null (no crash)
+
+                // If patient not found or bad password, try DOCTOR
+                .thenCompose(result -> {
+                    if (result != null) return CompletableFuture.completedFuture(result);
+
+                    return authenticateDoctor(normalizedEmail, password)
+                            .thenApply(uid -> new LoginResult(uid, "DOCTOR"));
+                });
+    }
+    public CompletableFuture<DoctorProfile> getDoctorProfile(String uid) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                ApiFuture<DocumentSnapshot> future = firestore.collection("doctors").document(uid).get();
+                DocumentSnapshot document = future.get();
+
+                if (document.exists()) {
+                    DoctorProfile profile = document.toObject(DoctorProfile.class);
+                    System.out.println("Doctor profile loaded for UID: " + uid);
+                    return profile;
+                } else {
+                    throw new RuntimeException("Doctor profile not found");
+                }
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException("Failed to retrieve doctor profile: " + e.getMessage(), e);
             }
         });
     }
@@ -247,4 +395,5 @@ public class FirebaseService {
         return "Login failed: " + errorMessage;
     }
 }
+
 

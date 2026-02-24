@@ -17,7 +17,8 @@ public class HelloApplication extends Application {
         }
 
         SceneRouter.init(stage);
-        SceneRouter.go("login-view.fxml", "Healthcare Project");
+
+       SceneRouter.go("login-view.fxml", "Healthcare Project");
         stage.show();
     }
 

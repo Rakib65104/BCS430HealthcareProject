@@ -151,7 +151,7 @@ public class ProfileController {
                 .thenAccept(v -> {
                     Platform.runLater(() -> {
                         System.out.println("Profile saved successfully to Firestore");
-                        userContext.updateProfile(currentProfile);
+                        userContext.updatePatientProfile(currentProfile);
                         isEditMode = false;
                         setFieldsEditable(false);
                         updateButtonVisibility();

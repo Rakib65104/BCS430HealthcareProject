@@ -394,6 +394,110 @@ public class FirebaseService {
         }
         return "Login failed: " + errorMessage;
     }
+
+    /**
+     * Retrieves all doctors from the database.
+     *
+     * @return CompletableFuture containing list of all doctors
+     */
+    public CompletableFuture<java.util.List<Doctor>> getAllDoctors() {
+        return CompletableFuture.supplyAsync(() -> {
+            java.util.List<Doctor> doctors = new java.util.ArrayList<>();
+            try {
+                com.google.cloud.firestore.QuerySnapshot snapshot = 
+                    firestore.collection(DOCTORS_COLLECTION).get().get();
+                
+                for (com.google.cloud.firestore.DocumentSnapshot doc : snapshot.getDocuments()) {
+                    Doctor doctor = new Doctor();
+                    doctor.setUid(doc.getId());
+                    doctor.setName(doc.getString("name"));
+                    doctor.setEmail(doc.getString("email"));
+                    doctor.setSpecialty(doc.getString("specialty"));
+                    doctor.setZip(doc.getString("zip"));
+                    doctor.setClinicName(doc.getString("clinicName"));
+                    doctor.setCity(doc.getString("city"));
+                    doctor.setState(doc.getString("state"));
+                    doctor.setAddress(doc.getString("address"));
+                    doctor.setAcceptingNewPatients(doc.getBoolean("acceptingNewPatients"));
+                    
+                    doctors.add(doctor);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve doctors: " + e.getMessage());
+            }
+            return doctors;
+        });
+    }
+
+    /**
+     * Books an appointment with a doctor.
+     *
+     * @param appointment Appointment object containing details
+     * @return CompletableFuture containing the appointment ID
+     */
+    public CompletableFuture<String> bookAppointment(Appointment appointment) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Generate appointment ID
+                String appointmentId = firestore.collection("appointments").document().getId();
+                appointment.setAppointmentId(appointmentId);
+
+                // Save appointment
+                firestore.collection("appointments").document(appointmentId).set(appointment).get();
+
+                System.out.println("Appointment booked: " + appointmentId);
+                return appointmentId;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to book appointment: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Retrieves appointments for a patient.
+     *
+     * @param patientUid The patient's UID
+     * @return CompletableFuture containing list of patient's appointments
+     */
+    public CompletableFuture<java.util.List<Appointment>> getPatientAppointments(String patientUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            java.util.List<Appointment> appointments = new java.util.ArrayList<>();
+            try {
+                com.google.cloud.firestore.QuerySnapshot snapshot = 
+                    firestore.collection("appointments")
+                        .whereEqualTo("patientUid", patientUid)
+                        .get().get();
+                
+                for (com.google.cloud.firestore.DocumentSnapshot doc : snapshot.getDocuments()) {
+                    Appointment appointment = doc.toObject(Appointment.class);
+                    appointments.add(appointment);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve appointments: " + e.getMessage());
+            }
+            return appointments;
+        });
+    }
+
+    /**
+     * Update an existing appointment
+     */
+    public CompletableFuture<Void> updateAppointment(Appointment appointment) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (appointment.getAppointmentId() == null || appointment.getAppointmentId().isEmpty()) {
+                    throw new RuntimeException("Appointment ID is required for update");
+                }
+                
+                firestore.collection("appointments")
+                    .document(appointment.getAppointmentId())
+                    .set(appointment)
+                    .get();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to update appointment: " + e.getMessage());
+            }
+        });
+    }
 }
 
 

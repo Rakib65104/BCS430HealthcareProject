@@ -36,6 +36,9 @@ public class DoctorProfileController {
 
     // Snapshot of original values for Cancel
     private DoctorProfileSnapshot original;
+    
+    // flag if this view is just a patient looking at a doctor's record
+    private boolean viewedByPatient = false;
 
     @FXML
     public void initialize() {
@@ -45,12 +48,52 @@ public class DoctorProfileController {
                 "In-Person + Telehealth"
         );
 
-        // Start in view mode
+        // Always start in view mode
         setEditing(false);
 
-        // Optional: load mock data for now
-        loadMockData();
-        original = snapshot();
+        // If a patient requested to view a doctor's profile, populate fields
+        Doctor selected = UserContext.getInstance().getSelectedDoctor();
+        if (selected != null && UserContext.getInstance().isPatient()) {
+            viewedByPatient = true;
+            populateFromDoctor(selected);
+            titleLabel.setText("Doctor Profile");
+            // hide edit controls since patient should not edit
+            editButton.setVisible(false);
+            editButton.setManaged(false);
+            saveButton.setVisible(false);
+            saveButton.setManaged(false);
+            cancelButton.setVisible(false);
+            cancelButton.setManaged(false);
+        } else {
+            // otherwise fall back to mock/example data for doctors editing their own profile
+            loadMockData();
+            original = snapshot();
+        }
+    }
+
+    private void populateFromDoctor(Doctor doctor) {
+        // fill fields from Doctor object
+        nameField.setText(doctor.getName());
+        specialtyField.setText(doctor.getSpecialty());
+        licenseField.setText(doctor.getLicenseNumber());
+        bioArea.setText(doctor.getBio());
+
+        clinicNameField.setText(doctor.getClinicName());
+        addressField.setText(doctor.getAddress());
+        cityField.setText(doctor.getCity());
+        stateField.setText(doctor.getState());
+        zipField.setText(doctor.getZip());
+
+        phoneField.setText(doctor.getPhone());
+        publicEmailField.setText(doctor.getPublicEmail());
+
+        acceptingNewPatientsCheck.setSelected(
+                doctor.getAcceptingNewPatients() != null && doctor.getAcceptingNewPatients());
+        insuranceArea.setText(doctor.getInsuranceInfo());
+        hoursArea.setText(doctor.getHours());
+
+        visitTypeComboBox.setValue(doctor.getVisitType());
+        notesArea.setText(doctor.getNotes());
     }
 
     private void loadMockData() {
@@ -72,8 +115,18 @@ public class DoctorProfileController {
 
     @FXML
     private void onBack() {
-        // change this to your doctor home view later
-        SceneRouter.go("signup-role-view.fxml", "Sign Up");
+        if (viewedByPatient) {
+            // back to search results
+            UserContext.getInstance().clearSelectedDoctor();
+            SceneRouter.go("doctor-search-view.fxml", "Find a Doctor");
+            return;
+        }
+
+        if (UserContext.getInstance().isDoctor()) {
+            SceneRouter.go("doctor-dashboard-view.fxml", "Doctor Dashboard");
+        } else {
+            SceneRouter.go("signup-role-view.fxml", "Sign Up");
+        }
     }
 
     @FXML

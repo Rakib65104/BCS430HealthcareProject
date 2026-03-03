@@ -13,17 +13,29 @@ public class PatientProfile {
     private String uid;
     private String name;
     private String email;
+    private String phoneNumber;
     private String zip;
     private String role;
     private String passwordHash;
     private String passwordSalt;
+    
+    // Personal Information
     private String dateOfBirth;
     private Integer age;
     private String gender;
+    
+    // Insurance Information
     private String insuranceNumber;
     private String insuranceCompany;
+    
+    // Medical Information
     private String allergies;
+    private String currentMedications;
+    private String chronicConditions;
+    private String bloodType;
+    private String vaccinationStatus;
     private String medicalHistory;
+    
     private Long createdAt;
     private Long updatedAt;
 
@@ -64,6 +76,14 @@ public class PatientProfile {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 
     public String getZip() {
@@ -154,6 +174,38 @@ public class PatientProfile {
         this.medicalHistory = medicalHistory;
     }
 
+    public String getCurrentMedications() {
+        return currentMedications;
+    }
+
+    public void setCurrentMedications(String currentMedications) {
+        this.currentMedications = currentMedications;
+    }
+
+    public String getChronicConditions() {
+        return chronicConditions;
+    }
+
+    public void setChronicConditions(String chronicConditions) {
+        this.chronicConditions = chronicConditions;
+    }
+
+    public String getBloodType() {
+        return bloodType;
+    }
+
+    public void setBloodType(String bloodType) {
+        this.bloodType = bloodType;
+    }
+
+    public String getVaccinationStatus() {
+        return vaccinationStatus;
+    }
+
+    public void setVaccinationStatus(String vaccinationStatus) {
+        this.vaccinationStatus = vaccinationStatus;
+    }
+
     public Long getCreatedAt() {
         return createdAt;
     }
@@ -178,6 +230,7 @@ public class PatientProfile {
         result.put("uid", uid);
         result.put("name", name);
         result.put("email", email);
+        result.put("phoneNumber", phoneNumber);
         result.put("zip", zip);
         result.put("role", role);
         result.put("passwordHash", passwordHash);
@@ -188,6 +241,10 @@ public class PatientProfile {
         result.put("insuranceNumber", insuranceNumber);
         result.put("insuranceCompany", insuranceCompany);
         result.put("allergies", allergies);
+        result.put("currentMedications", currentMedications);
+        result.put("chronicConditions", chronicConditions);
+        result.put("bloodType", bloodType);
+        result.put("vaccinationStatus", vaccinationStatus);
         result.put("medicalHistory", medicalHistory);
         result.put("createdAt", createdAt);
         result.put("updatedAt", updatedAt);

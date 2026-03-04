@@ -30,6 +30,15 @@ public class DoctorProfile {
     // Practice info
     private Boolean acceptingNewPatients;
 
+    // Contact & extended profile info
+    private String phone;
+    private String licenseNumber;
+    private String bio;
+    private String insuranceInfo;
+    private String hours;
+    private String visitType;
+    private String notes;
+
     // Security
     private String passwordHash;
     private String passwordSalt;
@@ -169,6 +178,69 @@ public class DoctorProfile {
         touch();
     }
 
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+        touch();
+    }
+
+    public String getLicenseNumber() {
+        return licenseNumber;
+    }
+
+    public void setLicenseNumber(String licenseNumber) {
+        this.licenseNumber = licenseNumber;
+        touch();
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+        touch();
+    }
+
+    public String getInsuranceInfo() {
+        return insuranceInfo;
+    }
+
+    public void setInsuranceInfo(String insuranceInfo) {
+        this.insuranceInfo = insuranceInfo;
+        touch();
+    }
+
+    public String getHours() {
+        return hours;
+    }
+
+    public void setHours(String hours) {
+        this.hours = hours;
+        touch();
+    }
+
+    public String getVisitType() {
+        return visitType;
+    }
+
+    public void setVisitType(String visitType) {
+        this.visitType = visitType;
+        touch();
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+        touch();
+    }
+
     public String getPasswordHash() {
         return passwordHash;
     }
@@ -223,6 +295,13 @@ public class DoctorProfile {
         result.put("state", state);
         result.put("zip", zip);
         result.put("acceptingNewPatients", acceptingNewPatients);
+        result.put("phone", phone);
+        result.put("licenseNumber", licenseNumber);
+        result.put("bio", bio);
+        result.put("insuranceInfo", insuranceInfo);
+        result.put("hours", hours);
+        result.put("visitType", visitType);
+        result.put("notes", notes);
 
         result.put("passwordHash", passwordHash);
         result.put("passwordSalt", passwordSalt);

@@ -10,6 +10,7 @@ public class UserContext {
     private String role;
     private PatientProfile patientProfile;
     private DoctorProfile doctorProfile;
+    private Doctor selectedDoctor; // For appointment booking
 
     private UserContext() {}
 
@@ -102,5 +103,17 @@ public class UserContext {
         if (isDoctor()) {
             this.doctorProfile = updatedProfile;
         }
+    }
+
+    public void setSelectedDoctor(Doctor doctor) {
+        this.selectedDoctor = doctor;
+    }
+
+    public Doctor getSelectedDoctor() {
+        return selectedDoctor;
+    }
+
+    public void clearSelectedDoctor() {
+        this.selectedDoctor = null;
     }
 }

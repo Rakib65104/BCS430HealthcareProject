@@ -1,6 +1,7 @@
 package rakib.bcs430healthcareproject;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 
@@ -14,6 +15,7 @@ public class PatientDashboardController {
     @FXML private Label patientNameLabel;
     @FXML private Label patientEmailLabel;
     @FXML private Button appointmentsButton;
+    @FXML private Button findDoctorButton;
     @FXML private Button prescriptionsButton;
     @FXML private Button profileButton;
     @FXML private Button logoutButton;
@@ -57,15 +59,36 @@ public class PatientDashboardController {
     @FXML
     private void onAppointments() {
         System.out.println("Navigating to appointments...");
-        // TODO: Implement appointments view
-        // SceneRouter.go("patient-appointments-view.fxml", "My Appointments");
+        SceneRouter.go("patient-appointments-view.fxml", "My Appointments");
     }
 
     @FXML
     private void onPrescriptions() {
         System.out.println("Navigating to prescriptions...");
-        // TODO: Implement prescriptions view
-        // SceneRouter.go("patient-prescriptions-view.fxml", "My Prescriptions");
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Feature Coming Soon");
+        alert.setHeaderText("Prescriptions");
+        alert.setContentText("The prescriptions feature will be available soon!");
+        alert.showAndWait();
+    }
+
+    @FXML
+    private void onFindDoctor() {
+        System.out.println("Navigating to find doctor...");
+        // debug resource lookup
+        java.net.URL res = SceneRouter.class.getResource("doctor-search-view.fxml");
+        System.out.println("doctor-search-view.fxml resource: " + res);
+        try {
+            SceneRouter.go("doctor-search-view.fxml", "Find a Doctor");
+        } catch (Exception ex) {
+            // log and show error to user rather than crashing
+            ex.printStackTrace();
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Navigation Error");
+            alert.setHeaderText("Unable to open Find a Doctor");
+            alert.setContentText("An error occurred while loading the doctor search. " + ex.getMessage());
+            alert.showAndWait();
+        }
     }
 
     @FXML

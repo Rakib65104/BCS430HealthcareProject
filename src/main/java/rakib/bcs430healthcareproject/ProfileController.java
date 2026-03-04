@@ -22,7 +22,13 @@ public class ProfileController {
     @FXML private ComboBox<String> genderComboBox;
     @FXML private TextField insuranceNumberField;
     @FXML private TextField insuranceCompanyField;
+    @FXML private TextField emailField;
+    @FXML private TextField phoneField;
+    @FXML private ComboBox<String> bloodTypeComboBox;
+    @FXML private ComboBox<String> vaccinationStatusComboBox;
     @FXML private TextArea allergiesArea;
+    @FXML private TextArea currentMedicationsArea;
+    @FXML private TextArea chronicConditionsArea;
     @FXML private TextArea medicalHistoryArea;
     @FXML private Button editButton;
     @FXML private Button saveButton;
@@ -40,8 +46,18 @@ public class ProfileController {
         firebaseService = new FirebaseService();
         userContext = UserContext.getInstance();
         
-        // Setup gender combo box
+        // Setup combo boxes
         genderComboBox.getItems().addAll("Not specified", "Male", "Female", "Other");
+        bloodTypeComboBox.getItems().addAll("Not specified", "O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-");
+        vaccinationStatusComboBox.getItems().addAll("Not specified", "Up to date", "Partially vaccinated", "Not vaccinated");
+        
+        // Setup age auto-calculation on date change
+        dateOfBirthPicker.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && isEditMode) {
+                int calculatedAge = calculateAge(newVal);
+                ageField.setText(String.valueOf(calculatedAge));
+            }
+        });
         
         // Load current profile
         if (userContext.isLoggedIn()) {
@@ -67,6 +83,8 @@ public class ProfileController {
         if (currentProfile == null) return;
         
         nameField.setText(currentProfile.getName() != null ? currentProfile.getName() : "");
+        emailField.setText(currentProfile.getEmail() != null ? currentProfile.getEmail() : "");
+        phoneField.setText(currentProfile.getPhoneNumber() != null ? currentProfile.getPhoneNumber() : "");
         ageField.setText(currentProfile.getAge() != null ? currentProfile.getAge().toString() : "");
         
         if (currentProfile.getDateOfBirth() != null) {
@@ -82,7 +100,16 @@ public class ProfileController {
         
         insuranceNumberField.setText(currentProfile.getInsuranceNumber() != null ? currentProfile.getInsuranceNumber() : "");
         insuranceCompanyField.setText(currentProfile.getInsuranceCompany() != null ? currentProfile.getInsuranceCompany() : "");
+        
+        String bloodType = currentProfile.getBloodType() != null ? currentProfile.getBloodType() : "Not specified";
+        bloodTypeComboBox.setValue(bloodType);
+        
+        String vaccinationStatus = currentProfile.getVaccinationStatus() != null ? currentProfile.getVaccinationStatus() : "Not specified";
+        vaccinationStatusComboBox.setValue(vaccinationStatus);
+        
         allergiesArea.setText(currentProfile.getAllergies() != null ? currentProfile.getAllergies() : "");
+        currentMedicationsArea.setText(currentProfile.getCurrentMedications() != null ? currentProfile.getCurrentMedications() : "");
+        chronicConditionsArea.setText(currentProfile.getChronicConditions() != null ? currentProfile.getChronicConditions() : "");
         medicalHistoryArea.setText(currentProfile.getMedicalHistory() != null ? currentProfile.getMedicalHistory() : "");
         
         setFieldsEditable(false);
@@ -129,6 +156,14 @@ public class ProfileController {
             System.out.println("Set Gender: " + genderComboBox.getValue());
         }
         
+        if (emailField.getText() != null) {
+            currentProfile.setEmail(emailField.getText().trim());
+        }
+        
+        if (phoneField.getText() != null) {
+            currentProfile.setPhoneNumber(phoneField.getText().trim());
+        }
+        
         if (insuranceNumberField.getText() != null) {
             currentProfile.setInsuranceNumber(insuranceNumberField.getText().trim());
         }
@@ -137,12 +172,28 @@ public class ProfileController {
             currentProfile.setInsuranceCompany(insuranceCompanyField.getText().trim());
         }
         
+        if (bloodTypeComboBox.getValue() != null) {
+            currentProfile.setBloodType(bloodTypeComboBox.getValue());
+        }
+        
+        if (vaccinationStatusComboBox.getValue() != null) {
+            currentProfile.setVaccinationStatus(vaccinationStatusComboBox.getValue());
+        }
+        
         if (allergiesArea.getText() != null) {
             currentProfile.setAllergies(allergiesArea.getText().trim());
         }
         
         if (medicalHistoryArea.getText() != null) {
             currentProfile.setMedicalHistory(medicalHistoryArea.getText().trim());
+        }
+        
+        if (currentMedicationsArea.getText() != null) {
+            currentProfile.setCurrentMedications(currentMedicationsArea.getText().trim());
+        }
+        
+        if (chronicConditionsArea.getText() != null) {
+            currentProfile.setChronicConditions(chronicConditionsArea.getText().trim());
         }
         
         // Save to Firestore
@@ -186,13 +237,19 @@ public class ProfileController {
      */
     private void setFieldsEditable(boolean editable) {
         nameField.setEditable(editable);
+        emailField.setEditable(editable);
+        phoneField.setEditable(editable);
         dateOfBirthPicker.setDisable(!editable);
         ageField.setEditable(editable);
         genderComboBox.setDisable(!editable);
         insuranceNumberField.setEditable(editable);
         insuranceCompanyField.setEditable(editable);
+        bloodTypeComboBox.setDisable(!editable);
+        vaccinationStatusComboBox.setDisable(!editable);
         allergiesArea.setEditable(editable);
         medicalHistoryArea.setEditable(editable);
+        currentMedicationsArea.setEditable(editable);
+        chronicConditionsArea.setEditable(editable);
     }
 
     /**
@@ -243,5 +300,22 @@ public class ProfileController {
                 }
             });
         }
+    }
+
+    /**
+     * Calculate age from date of birth
+     */
+    private int calculateAge(java.time.LocalDate dateOfBirth) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int age = today.getYear() - dateOfBirth.getYear();
+        
+        // Adjust if birthday hasn't occurred yet this year
+        if (today.getMonthValue() < dateOfBirth.getMonthValue() ||
+            (today.getMonthValue() == dateOfBirth.getMonthValue() && 
+             today.getDayOfMonth() < dateOfBirth.getDayOfMonth())) {
+            age--;
+        }
+        
+        return age;
     }
 }

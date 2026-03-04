@@ -32,6 +32,7 @@
             <!-- Action Buttons Grid -->
             <HBox style="-fx-spacing: 15; -fx-wrap-text: true;">
                 <Button fx:id="appointmentsButton" onAction="#onAppointments" style="-fx-padding: 15; -fx-font-size: 14; -fx-min-width: 150;" text="My Appointments" />
+                <Button fx:id="findDoctorButton" onAction="#onFindDoctor" style="-fx-padding: 15; -fx-font-size: 14; -fx-min-width: 150;" text="Find a Doctor" />
                 <Button fx:id="prescriptionsButton" onAction="#onPrescriptions" style="-fx-padding: 15; -fx-font-size: 14; -fx-min-width: 150;" text="My Prescriptions" />
                 <Button fx:id="profileButton" onAction="#onProfile" style="-fx-padding: 15; -fx-font-size: 14; -fx-min-width: 150;" text="Edit Profile" />
             </HBox>

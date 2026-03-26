@@ -1,9 +1,19 @@
 package rakib.bcs430healthcareproject;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
 /**
  * Model class representing an appointment between a patient and doctor.
  */
 public class Appointment {
+
+    private static final DateTimeFormatter SLOT_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH);
 
     private String appointmentId;
 
@@ -178,5 +188,34 @@ public class Appointment {
 
     public void setCreatedAt(Long createdAt) {
         this.createdAt = createdAt;
+    }
+
+    /**
+     * Returns a best-effort epoch millis for the appointment's scheduled time.
+     */
+    public Long resolveAppointmentEpochMillis() {
+        if (appointmentDateTime != null) {
+            return appointmentDateTime;
+        }
+
+        if (appointmentDate == null || appointmentDate.isBlank()
+                || appointmentSlot == null || appointmentSlot.isBlank()) {
+            return null;
+        }
+
+        try {
+            LocalDate date = LocalDate.parse(appointmentDate.trim());
+            LocalTime time = LocalTime.parse(appointmentSlot.trim().toUpperCase(Locale.ENGLISH), SLOT_TIME_FORMAT);
+            LocalDateTime dateTime = LocalDateTime.of(date, time);
+
+            return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public boolean hasPassed(long nowEpochMillis) {
+        Long appointmentEpoch = resolveAppointmentEpochMillis();
+        return appointmentEpoch != null && appointmentEpoch < nowEpochMillis;
     }
 }

@@ -1,9 +1,15 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.util.Duration;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Controller for the Patient Dashboard.
@@ -11,7 +17,11 @@ import javafx.scene.control.Label;
  */
 public class PatientDashboardController {
 
+    private static final DateTimeFormatter DATE_TIME_DISPLAY_FORMAT =
+            DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy - h:mm:ss a");
+
     @FXML private Label welcomeLabel;
+    @FXML private Label currentDateTimeLabel;
     @FXML private Label patientNameLabel;
     @FXML private Label patientEmailLabel;
     @FXML private Button appointmentsButton;
@@ -20,14 +30,14 @@ public class PatientDashboardController {
     @FXML private Button profileButton;
     @FXML private Button logoutButton;
 
-    private FirebaseService firebaseService;
+    private Timeline clockTimeline;
 
     /**
      * Initialize the controller.
      */
     @FXML
     public void initialize() {
-        firebaseService = new FirebaseService();
+        startClock();
         
         // Load current user data from session
         UserContext userContext = UserContext.getInstance();
@@ -56,6 +66,23 @@ public class PatientDashboardController {
         }
     }
 
+    private void startClock() {
+        updateClockLabel();
+        clockTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> updateClockLabel()));
+        clockTimeline.setCycleCount(Timeline.INDEFINITE);
+        clockTimeline.play();
+
+        currentDateTimeLabel.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null && clockTimeline != null) {
+                clockTimeline.stop();
+            }
+        });
+    }
+
+    private void updateClockLabel() {
+        currentDateTimeLabel.setText("Today: " + LocalDateTime.now().format(DATE_TIME_DISPLAY_FORMAT));
+    }
+
     @FXML
     private void onAppointments() {
         System.out.println("Navigating to appointments...");
@@ -65,11 +92,7 @@ public class PatientDashboardController {
     @FXML
     private void onPrescriptions() {
         System.out.println("Navigating to prescriptions...");
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Feature Coming Soon");
-        alert.setHeaderText("Prescriptions");
-        alert.setContentText("The prescriptions feature will be available soon!");
-        alert.showAndWait();
+        SceneRouter.go("patient-prescriptions-view.fxml", "My Prescriptions");
     }
 
     @FXML

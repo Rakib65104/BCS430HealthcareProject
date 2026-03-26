@@ -84,6 +84,17 @@
                                -fx-background-radius:8;
                                -fx-padding:10 16;"/>
 
+                <Button text="Open Pharmacy Portal"
+                        onAction="#onOpenPharmacyPortal"
+                        maxWidth="Infinity"
+                        style="-fx-background-color:white;
+                               -fx-text-fill:#0F766E;
+                               -fx-font-weight:bold;
+                               -fx-border-color:#14B8A6;
+                               -fx-border-radius:8;
+                               -fx-background-radius:8;
+                               -fx-padding:10 16;"/>
+
                 <!-- Signup Link -->
                 <HBox spacing="6" alignment="CENTER">
                     <Label text="No account?"

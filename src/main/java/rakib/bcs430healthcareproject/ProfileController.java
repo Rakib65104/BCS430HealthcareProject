@@ -42,6 +42,7 @@ public class ProfileController {
     private UserContext userContext;
     private PatientProfile currentProfile;
     private boolean isEditMode = false;
+    private boolean isDoctorReadOnlyView = false;
 
     @FXML
     public void initialize() {
@@ -68,20 +69,27 @@ public class ProfileController {
             }
         });
         
-        // Load current profile
-        if (userContext.isLoggedIn()) {
-            currentProfile = userContext.getProfile();
-            if (currentProfile != null) {
-                loadProfileData();
-            } else {
-                showStatus("Profile not available", true);
-            }
-        } else {
+        if (!userContext.isLoggedIn()) {
             showStatus("Not logged in", true);
             SceneRouter.go("login-view.fxml", "Login");
+            return;
         }
-        
-        // Setup button visibility
+
+        if (userContext.isDoctor() && userContext.getSelectedPatientProfile() != null) {
+            isDoctorReadOnlyView = true;
+            currentProfile = userContext.getSelectedPatientProfile();
+            titleLabel.setText("Patient Profile");
+        } else {
+            currentProfile = userContext.getProfile();
+            titleLabel.setText("My Profile");
+        }
+
+        if (currentProfile != null) {
+            loadProfileData();
+        } else {
+            showStatus("Profile not available", true);
+        }
+
         updateButtonVisibility();
     }
 
@@ -132,6 +140,10 @@ public class ProfileController {
 
     @FXML
     private void onEdit() {
+        if (isDoctorReadOnlyView) {
+            showStatus("Doctors can only view patient profiles here.", true);
+            return;
+        }
         isEditMode = true;
         setFieldsEditable(true);
         updateButtonVisibility();
@@ -140,6 +152,10 @@ public class ProfileController {
 
     @FXML
     private void onSave() {
+        if (isDoctorReadOnlyView) {
+            showStatus("Doctors can only view patient profiles here.", true);
+            return;
+        }
         // Validate required fields
         if (nameField.getText() == null || nameField.getText().trim().isEmpty()) {
             showStatus("Name is required", true);
@@ -258,6 +274,12 @@ public class ProfileController {
 
     @FXML
     private void onBack() {
+        if (isDoctorReadOnlyView) {
+            userContext.clearSelectedPatientProfile();
+            SceneRouter.go("doctor-patients-view.fxml", "My Patients");
+            return;
+        }
+
         SceneRouter.go("patient-dashboard-view.fxml", "Patient Dashboard");
     }
 
@@ -287,6 +309,16 @@ public class ProfileController {
      * Update button visibility based on current mode
      */
     private void updateButtonVisibility() {
+        if (isDoctorReadOnlyView) {
+            editButton.setManaged(false);
+            editButton.setVisible(false);
+            saveButton.setManaged(false);
+            saveButton.setVisible(false);
+            cancelButton.setManaged(false);
+            cancelButton.setVisible(false);
+            return;
+        }
+
         if (isEditMode) {
             editButton.setManaged(false);
             editButton.setVisible(false);

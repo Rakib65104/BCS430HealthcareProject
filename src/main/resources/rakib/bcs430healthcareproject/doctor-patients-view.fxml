@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="rakib.bcs430healthcareproject.DoctorPatientsController"
+            stylesheets="@app.css">
+
+    <top>
+        <VBox spacing="0">
+            <HBox style="-fx-background-color: #0F766E; -fx-padding: 18 24; -fx-alignment: center-left; -fx-spacing: 15;">
+                <Button text="Back"
+                        onAction="#onBack"
+                        style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;" />
+                <Label text="My Patients"
+                       style="-fx-text-fill: white; -fx-font-size: 22; -fx-font-weight: bold;" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Label fx:id="doctorNameLabel"
+                       style="-fx-text-fill: #CCFBF1; -fx-font-size: 14; -fx-font-weight: bold;" />
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox style="-fx-background-color: #F8FAFC; -fx-padding: 24; -fx-spacing: 16;">
+            <Label text="Review patient information and send prescriptions to their pharmacy."
+                   style="-fx-text-fill: #334155; -fx-font-size: 14;" />
+            <Label fx:id="statusLabel"
+                   style="-fx-text-fill: #0F766E; -fx-font-size: 12; -fx-font-weight: bold;" />
+            <ScrollPane fx:id="patientsScrollPane"
+                        fitToWidth="true"
+                        style="-fx-background-color: transparent;">
+                <content>
+                    <VBox fx:id="patientsListVBox" spacing="14" style="-fx-padding: 4;" />
+                </content>
+            </ScrollPane>
+        </VBox>
+    </center>
+</BorderPane>

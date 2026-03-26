@@ -32,6 +32,7 @@ public class FirebaseService {
     private static final String USERS_COLLECTION = "users";
     private static final String DOCTORS_COLLECTION = "doctors";
     private static final String APPOINTMENTS_COLLECTION = "appointments";
+    private static final String PRESCRIPTIONS_COLLECTION = "prescriptions";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
@@ -346,36 +347,7 @@ public class FirebaseService {
                 QuerySnapshot snapshot = firestore.collection(DOCTORS_COLLECTION).get().get();
 
                 for (DocumentSnapshot doc : snapshot.getDocuments()) {
-                    Doctor doctor = new Doctor();
-                    doctor.setUid(doc.getId());
-                    doctor.setName(doc.getString("name"));
-                    doctor.setEmail(doc.getString("email"));
-                    doctor.setSpecialty(doc.getString("specialty"));
-                    doctor.setZip(doc.getString("zip"));
-                    doctor.setClinicName(doc.getString("clinicName"));
-                    doctor.setCity(doc.getString("city"));
-                    doctor.setState(doc.getString("state"));
-                    doctor.setAddress(doc.getString("address"));
-                    doctor.setPhone(doc.getString("phone"));
-                    doctor.setAcceptingNewPatients(doc.getBoolean("acceptingNewPatients"));
-                    doctor.setHours(doc.getString("hours"));
-                    doctor.setInsuranceInfo(doc.getString("insuranceInfo"));
-                    doctor.setBio(doc.getString("bio"));
-                    doctor.setVisitType(doc.getString("visitType"));
-                    doctor.setNotes(doc.getString("notes"));
-
-                    Object availabilityObj = doc.get("availability");
-                    if (availabilityObj instanceof Map<?, ?> rawMap) {
-                        Map<String, String> availability = new HashMap<>();
-                        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-                            if (entry.getKey() != null && entry.getValue() != null) {
-                                availability.put(entry.getKey().toString(), entry.getValue().toString());
-                            }
-                        }
-                        doctor.setAvailability(availability);
-                    }
-
-                    doctors.add(doctor);
+                    doctors.add(mapDoctorDocument(doc));
                 }
 
                 // If no doctors, add a test doctor
@@ -399,6 +371,61 @@ public class FirebaseService {
             }
             return doctors;
         });
+    }
+
+    /**
+     * Retrieves a single doctor record by UID.
+     */
+    public CompletableFuture<Doctor> getDoctorByUid(String doctorUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                DocumentSnapshot doc = firestore.collection(DOCTORS_COLLECTION)
+                        .document(doctorUid)
+                        .get()
+                        .get();
+
+                if (!doc.exists()) {
+                    throw new RuntimeException("Doctor not found.");
+                }
+
+                return mapDoctorDocument(doc);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve doctor: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    private Doctor mapDoctorDocument(DocumentSnapshot doc) {
+        Doctor doctor = new Doctor();
+        doctor.setUid(doc.getId());
+        doctor.setName(doc.getString("name"));
+        doctor.setEmail(doc.getString("email"));
+        doctor.setSpecialty(doc.getString("specialty"));
+        doctor.setZip(doc.getString("zip"));
+        doctor.setClinicName(doc.getString("clinicName"));
+        doctor.setCity(doc.getString("city"));
+        doctor.setState(doc.getString("state"));
+        doctor.setAddress(doc.getString("address"));
+        doctor.setPhone(doc.getString("phone"));
+        doctor.setAcceptingNewPatients(doc.getBoolean("acceptingNewPatients"));
+        doctor.setHours(doc.getString("hours"));
+        doctor.setInsuranceInfo(doc.getString("insuranceInfo"));
+        doctor.setBio(doc.getString("bio"));
+        doctor.setVisitType(doc.getString("visitType"));
+        doctor.setNotes(doc.getString("notes"));
+
+        Object availabilityObj = doc.get("availability");
+        if (availabilityObj instanceof Map<?, ?> rawMap) {
+            Map<String, String> availability = new HashMap<>();
+            for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    availability.put(entry.getKey().toString(), entry.getValue().toString());
+                }
+            }
+            doctor.setAvailability(availability);
+        }
+
+        return doctor;
     }
 
     /**
@@ -674,6 +701,174 @@ public class FirebaseService {
                 throw new RuntimeException("Failed to retrieve doctor appointments: " + e.getMessage(), e);
             }
             return appointments;
+        });
+    }
+
+    /**
+     * Retrieves unique patients who have appointments with a doctor.
+     */
+    public CompletableFuture<List<PatientProfile>> getDoctorPatients(String doctorUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            Map<String, PatientProfile> uniquePatients = new HashMap<>();
+            try {
+                QuerySnapshot snapshot = firestore.collection(APPOINTMENTS_COLLECTION)
+                        .whereEqualTo("doctorUid", doctorUid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot appointmentDoc : snapshot.getDocuments()) {
+                    String patientUid = appointmentDoc.getString("patientUid");
+                    if (patientUid == null || patientUid.isBlank() || uniquePatients.containsKey(patientUid)) {
+                        continue;
+                    }
+
+                    DocumentSnapshot patientDoc = firestore.collection(PATIENTS_COLLECTION)
+                            .document(patientUid)
+                            .get()
+                            .get();
+
+                    if (!patientDoc.exists()) {
+                        continue;
+                    }
+
+                    PatientProfile profile = patientDoc.toObject(PatientProfile.class);
+                    if (profile != null) {
+                        uniquePatients.put(patientUid, profile);
+                    }
+                }
+
+                List<PatientProfile> patients = new ArrayList<>(uniquePatients.values());
+                patients.sort((left, right) -> {
+                    String leftName = left.getName() != null ? left.getName() : "";
+                    String rightName = right.getName() != null ? right.getName() : "";
+                    return leftName.compareToIgnoreCase(rightName);
+                });
+                return patients;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve doctor patients: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Saves a prescription record.
+     */
+    public CompletableFuture<String> savePrescription(Prescription prescription) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (prescription == null) {
+                    throw new RuntimeException("Prescription cannot be null.");
+                }
+                if (prescription.getDoctorUid() == null || prescription.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Doctor ID is required.");
+                }
+                if (prescription.getPatientUid() == null || prescription.getPatientUid().isBlank()) {
+                    throw new RuntimeException("Patient ID is required.");
+                }
+                if (prescription.getPharmacyAddress() == null || prescription.getPharmacyAddress().isBlank()) {
+                    throw new RuntimeException("Pharmacy address is required.");
+                }
+                if (prescription.getPharmacyPhoneNumber() == null || prescription.getPharmacyPhoneNumber().isBlank()) {
+                    throw new RuntimeException("Pharmacy phone number is required.");
+                }
+                if (prescription.getMedicationInformation() == null || prescription.getMedicationInformation().isBlank()) {
+                    throw new RuntimeException("Medication information is required.");
+                }
+                if (prescription.getInstructions() == null || prescription.getInstructions().isBlank()) {
+                    throw new RuntimeException("Prescription instructions are required.");
+                }
+
+                String prescriptionId = firestore.collection(PRESCRIPTIONS_COLLECTION).document().getId();
+                prescription.setPrescriptionId(prescriptionId);
+
+                if (prescription.getStatus() == null || prescription.getStatus().isBlank()) {
+                    prescription.setStatus(Prescription.STATUS_SENT);
+                }
+                if (prescription.getCreatedAt() == null) {
+                    prescription.setCreatedAt(System.currentTimeMillis());
+                }
+
+                firestore.collection(PRESCRIPTIONS_COLLECTION)
+                        .document(prescriptionId)
+                        .set(prescription)
+                        .get();
+
+                return prescriptionId;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save prescription: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<List<Prescription>> getPatientPrescriptions(String patientUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<Prescription> prescriptions = new ArrayList<>();
+            try {
+                QuerySnapshot snapshot = firestore.collection(PRESCRIPTIONS_COLLECTION)
+                        .whereEqualTo("patientUid", patientUid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    Prescription prescription = doc.toObject(Prescription.class);
+                    if (prescription != null) {
+                        prescription.setPrescriptionId(doc.getId());
+                        prescriptions.add(prescription);
+                    }
+                }
+
+                prescriptions.sort((left, right) -> Long.compare(
+                        right.getCreatedAt() != null ? right.getCreatedAt() : 0L,
+                        left.getCreatedAt() != null ? left.getCreatedAt() : 0L
+                ));
+                return prescriptions;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve patient prescriptions: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<List<Prescription>> getAllPrescriptions() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<Prescription> prescriptions = new ArrayList<>();
+            try {
+                QuerySnapshot snapshot = firestore.collection(PRESCRIPTIONS_COLLECTION)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    Prescription prescription = doc.toObject(Prescription.class);
+                    if (prescription != null) {
+                        prescription.setPrescriptionId(doc.getId());
+                        prescriptions.add(prescription);
+                    }
+                }
+
+                prescriptions.sort((left, right) -> Long.compare(
+                        right.getCreatedAt() != null ? right.getCreatedAt() : 0L,
+                        left.getCreatedAt() != null ? left.getCreatedAt() : 0L
+                ));
+                return prescriptions;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve prescriptions: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<Void> updatePrescription(Prescription prescription) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (prescription == null || prescription.getPrescriptionId() == null || prescription.getPrescriptionId().isBlank()) {
+                    throw new RuntimeException("Prescription ID is required for update.");
+                }
+
+                firestore.collection(PRESCRIPTIONS_COLLECTION)
+                        .document(prescription.getPrescriptionId())
+                        .set(prescription)
+                        .get();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to update prescription: " + e.getMessage(), e);
+            }
         });
     }
 

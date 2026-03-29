@@ -24,9 +24,11 @@ public class PatientDashboardController {
     @FXML private Label currentDateTimeLabel;
     @FXML private Label patientNameLabel;
     @FXML private Label patientEmailLabel;
+
     @FXML private Button appointmentsButton;
     @FXML private Button findDoctorButton;
     @FXML private Button prescriptionsButton;
+    @FXML private Button messageButton; // ✅ NEW
     @FXML private Button profileButton;
     @FXML private Button logoutButton;
 
@@ -38,16 +40,16 @@ public class PatientDashboardController {
     @FXML
     public void initialize() {
         startClock();
-        
+
         // Load current user data from session
         UserContext userContext = UserContext.getInstance();
-        
+
         if (userContext.isLoggedIn()) {
             PatientProfile profile = userContext.getProfile();
             String uid = userContext.getUid();
-            
+
             System.out.println("Loading dashboard for user: " + uid);
-            
+
             if (profile != null) {
                 String displayName = profile.getName() != null ? profile.getName() : "Patient";
                 welcomeLabel.setText("Welcome Back, " + displayName);
@@ -59,7 +61,6 @@ public class PatientDashboardController {
                 patientEmailLabel.setText("Email: [Not loaded]");
             }
         } else {
-            // User not logged in, show defaults
             welcomeLabel.setText("Welcome to Your Patient Dashboard");
             patientNameLabel.setText("Patient Name: [Not loaded]");
             patientEmailLabel.setText("Email: [Not loaded]");
@@ -98,13 +99,11 @@ public class PatientDashboardController {
     @FXML
     private void onFindDoctor() {
         System.out.println("Navigating to find doctor...");
-        // debug resource lookup
         java.net.URL res = SceneRouter.class.getResource("doctor-search-view.fxml");
         System.out.println("doctor-search-view.fxml resource: " + res);
         try {
             SceneRouter.go("doctor-search-view.fxml", "Find a Doctor");
         } catch (Exception ex) {
-            // log and show error to user rather than crashing
             ex.printStackTrace();
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Navigation Error");
@@ -112,6 +111,12 @@ public class PatientDashboardController {
             alert.setContentText("An error occurred while loading the doctor search. " + ex.getMessage());
             alert.showAndWait();
         }
+    }
+
+    @FXML
+    private void onMessage() { // ✅ NEW METHOD
+        System.out.println("Navigating to messages...");
+        SceneRouter.go("patient-message-view.fxml", "Messages");
     }
 
     @FXML

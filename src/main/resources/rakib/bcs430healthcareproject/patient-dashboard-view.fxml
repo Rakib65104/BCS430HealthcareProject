@@ -53,6 +53,11 @@
                         onAction="#onPrescriptions"
                         style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-border-color: #14B8A6; -fx-border-radius: 20; -fx-background-radius: 20; -fx-padding: 10 18;" />
 
+                <Button fx:id="messageButton"
+                        text="Message"
+                        onAction="#onMessage"
+                        style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-border-color: #14B8A6; -fx-border-radius: 20; -fx-background-radius: 20; -fx-padding: 10 18;" />
+
                 <Button fx:id="profileButton"
                         text="Edit Profile"
                         onAction="#onProfile"
@@ -73,9 +78,9 @@
                        style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;" />
                 <Label text="Welcome to your healthcare portal."
                        style="-fx-text-fill: #CCFBF1; -fx-font-size: 14;" />
-                  <Label fx:id="currentDateTimeLabel"
-                      text="Today"
-                      style="-fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold;" />
+                <Label fx:id="currentDateTimeLabel"
+                       text="Today"
+                       style="-fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold;" />
             </VBox>
 
             <!-- Patient Information Panel -->

@@ -33,6 +33,7 @@ public class FirebaseService {
     private static final String DOCTORS_COLLECTION = "doctors";
     private static final String APPOINTMENTS_COLLECTION = "appointments";
     private static final String PRESCRIPTIONS_COLLECTION = "prescriptions";
+    private static final String MESSAGES_COLLECTION = "messages";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
@@ -749,7 +750,56 @@ public class FirebaseService {
             }
         });
     }
+    /**
+     * Retrieves unique doctors a patient has appointments with.
+     */
+    public CompletableFuture<List<Doctor>> getDoctorsForPatient(String patientUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            Map<String, Doctor> uniqueDoctors = new HashMap<>();
 
+            try {
+                QuerySnapshot snapshot = firestore.collection(APPOINTMENTS_COLLECTION)
+                        .whereEqualTo("patientUid", patientUid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot appointmentDoc : snapshot.getDocuments()) {
+                    String doctorUid = appointmentDoc.getString("doctorUid");
+
+                    if (doctorUid == null || doctorUid.isBlank() || uniqueDoctors.containsKey(doctorUid)) {
+                        continue;
+                    }
+
+                    DocumentSnapshot doctorDoc = firestore.collection(DOCTORS_COLLECTION)
+                            .document(doctorUid)
+                            .get()
+                            .get();
+
+                    if (!doctorDoc.exists()) {
+                        continue;
+                    }
+
+                    Doctor doctor = mapDoctorDocument(doctorDoc);
+                    if (doctor != null) {
+                        uniqueDoctors.put(doctorUid, doctor);
+                    }
+                }
+
+                List<Doctor> doctors = new ArrayList<>(uniqueDoctors.values());
+
+                doctors.sort((left, right) -> {
+                    String leftName = left.getName() != null ? left.getName() : "";
+                    String rightName = right.getName() != null ? right.getName() : "";
+                    return leftName.compareToIgnoreCase(rightName);
+                });
+
+                return doctors;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve patient doctors: " + e.getMessage(), e);
+            }
+        });
+    }
     /**
      * Saves a prescription record.
      */
@@ -796,6 +846,78 @@ public class FirebaseService {
                 return prescriptionId;
             } catch (Exception e) {
                 throw new RuntimeException("Failed to save prescription: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Saves a doctor-patient message.
+     */
+    public CompletableFuture<String> saveMessage(Message message) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (message == null) {
+                    throw new RuntimeException("Message cannot be null.");
+                }
+                if (message.getDoctorUid() == null || message.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Doctor ID is required.");
+                }
+                if (message.getPatientUid() == null || message.getPatientUid().isBlank()) {
+                    throw new RuntimeException("Patient ID is required.");
+                }
+                if (message.getMessageText() == null || message.getMessageText().isBlank()) {
+                    throw new RuntimeException("Message text is required.");
+                }
+
+                String messageId = firestore.collection(MESSAGES_COLLECTION).document().getId();
+                message.setMessageId(messageId);
+
+                if (message.getCreatedAt() == null) {
+                    message.setCreatedAt(System.currentTimeMillis());
+                }
+
+                firestore.collection(MESSAGES_COLLECTION)
+                        .document(messageId)
+                        .set(message)
+                        .get();
+
+                return messageId;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save message: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Retrieves all messages between a doctor and patient.
+     */
+    public CompletableFuture<List<Message>> getMessagesBetweenDoctorAndPatient(String doctorUid, String patientUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<Message> messages = new ArrayList<>();
+
+            try {
+                QuerySnapshot snapshot = firestore.collection(MESSAGES_COLLECTION)
+                        .whereEqualTo("doctorUid", doctorUid)
+                        .whereEqualTo("patientUid", patientUid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    Message message = doc.toObject(Message.class);
+                    if (message != null) {
+                        message.setMessageId(doc.getId());
+                        messages.add(message);
+                    }
+                }
+
+                messages.sort((a, b) -> Long.compare(
+                        a.getCreatedAt() != null ? a.getCreatedAt() : 0L,
+                        b.getCreatedAt() != null ? b.getCreatedAt() : 0L
+                ));
+
+                return messages;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve messages: " + e.getMessage(), e);
             }
         });
     }

@@ -42,17 +42,27 @@ public class DoctorPrescriptionController {
             return;
         }
 
-        patientNameLabel.setText(selectedPatient.getName() != null ? selectedPatient.getName() : "Patient");
-        doctorNameLabel.setText(userContext.getName() != null ? "Prescribing Doctor: Dr. " + userContext.getName() : "Prescribing Doctor");
+        patientNameLabel.setText(
+                selectedPatient.getName() != null ? selectedPatient.getName() : "Patient"
+        );
+
+        doctorNameLabel.setText(
+                userContext.getName() != null
+                        ? "Prescribing Doctor: Dr. " + userContext.getName()
+                        : "Prescribing Doctor"
+        );
     }
 
     @FXML
     private void onSendPrescription() {
+
+        String pharmacyName = safeTrim(pharmacyNameField.getText());
         String pharmacyAddress = safeTrim(pharmacyAddressArea.getText());
         String pharmacyPhone = safeTrim(pharmacyPhoneField.getText());
         String medicationInformation = safeTrim(medicationInformationArea.getText());
         String instructions = safeTrim(instructionsArea.getText());
 
+        // Validation
         if (pharmacyAddress.isBlank()) {
             showStatus("Pharmacy address is required.", true);
             return;
@@ -75,7 +85,7 @@ public class DoctorPrescriptionController {
         prescription.setDoctorName(userContext.getName());
         prescription.setPatientUid(selectedPatient.getUid());
         prescription.setPatientName(selectedPatient.getName());
-        prescription.setPharmacyName(safeTrim(pharmacyNameField.getText()));
+        prescription.setPharmacyName(pharmacyName);
         prescription.setPharmacyAddress(pharmacyAddress);
         prescription.setPharmacyPhoneNumber(pharmacyPhone);
         prescription.setMedicationInformation(medicationInformation);

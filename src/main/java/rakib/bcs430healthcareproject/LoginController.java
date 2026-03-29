@@ -84,6 +84,11 @@ public class LoginController {
         SceneRouter.go("signup-role-view.fxml", "Sign Up");
     }
 
+    @FXML
+    private void onOpenPharmacyPortal() {
+        SceneRouter.go("pharmacy-prescriptions-view.fxml", "Pharmacy Portal");
+    }
+
     private void showError(String msg) {
         errorLabel.setText(msg);
         errorLabel.setStyle("-fx-text-fill: #cc0000;");

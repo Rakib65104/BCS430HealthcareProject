@@ -57,8 +57,22 @@ public class DoctorSignupController {
     @FXML
     public void initialize() {
         firebaseService = new FirebaseService();
+        if (!hasAvailabilityControls()) {
+            return;
+        }
+
         setupTimeCombos();
         setupClosedDayBehavior();
+    }
+
+    private boolean hasAvailabilityControls() {
+        return mondayStartCombo != null && mondayEndCombo != null && mondayClosedCheck != null
+                && tuesdayStartCombo != null && tuesdayEndCombo != null && tuesdayClosedCheck != null
+                && wednesdayStartCombo != null && wednesdayEndCombo != null && wednesdayClosedCheck != null
+                && thursdayStartCombo != null && thursdayEndCombo != null && thursdayClosedCheck != null
+                && fridayStartCombo != null && fridayEndCombo != null && fridayClosedCheck != null
+                && saturdayStartCombo != null && saturdayEndCombo != null && saturdayClosedCheck != null
+                && sundayStartCombo != null && sundayEndCombo != null && sundayClosedCheck != null;
     }
 
     private void setupTimeCombos() {
@@ -201,6 +215,10 @@ public class DoctorSignupController {
     }
 
     private Map<String, String> buildAvailabilityMap() {
+        if (!hasAvailabilityControls()) {
+            return buildDefaultAvailabilityMap();
+        }
+
         Map<String, String> availability = new LinkedHashMap<>();
 
         availability.put("Monday", buildDayAvailability("Monday", mondayStartCombo, mondayEndCombo, mondayClosedCheck));
@@ -211,6 +229,18 @@ public class DoctorSignupController {
         availability.put("Saturday", buildDayAvailability("Saturday", saturdayStartCombo, saturdayEndCombo, saturdayClosedCheck));
         availability.put("Sunday", buildDayAvailability("Sunday", sundayStartCombo, sundayEndCombo, sundayClosedCheck));
 
+        return availability;
+    }
+
+    private Map<String, String> buildDefaultAvailabilityMap() {
+        Map<String, String> availability = new LinkedHashMap<>();
+        availability.put("Monday", "9:00 AM - 5:00 PM");
+        availability.put("Tuesday", "9:00 AM - 5:00 PM");
+        availability.put("Wednesday", "9:00 AM - 5:00 PM");
+        availability.put("Thursday", "9:00 AM - 5:00 PM");
+        availability.put("Friday", "9:00 AM - 5:00 PM");
+        availability.put("Saturday", "Closed");
+        availability.put("Sunday", "Closed");
         return availability;
     }
 

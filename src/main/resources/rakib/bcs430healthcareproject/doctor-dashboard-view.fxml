@@ -68,6 +68,9 @@
                        style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;" />
                 <Label text="Manage your patients, schedule, and profile from one place."
                        style="-fx-text-fill: #CCFBF1; -fx-font-size: 14;" />
+                  <Label fx:id="currentDateTimeLabel"
+                      text="Today"
+                      style="-fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold;" />
             </VBox>
 
             <!-- Doctor Information Panel -->

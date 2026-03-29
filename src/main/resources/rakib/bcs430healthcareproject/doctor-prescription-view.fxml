@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="rakib.bcs430healthcareproject.DoctorPrescriptionController"
+            stylesheets="@app.css">
+
+    <top>
+        <HBox style="-fx-background-color: #0F766E; -fx-padding: 18 24; -fx-alignment: center-left; -fx-spacing: 15;">
+            <Button text="Back"
+                    onAction="#onBack"
+                    style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;" />
+            <Label text="Send Prescription"
+                   style="-fx-text-fill: white; -fx-font-size: 22; -fx-font-weight: bold;" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Label fx:id="doctorNameLabel"
+                   style="-fx-text-fill: #CCFBF1; -fx-font-size: 14; -fx-font-weight: bold;" />
+        </HBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: #F8FAFC;">
+            <VBox style="-fx-padding: 24; -fx-spacing: 18; -fx-background-color: #F8FAFC;">
+                <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 8; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
+                    <Label text="Patient"
+                           style="-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;" />
+                    <Label fx:id="patientNameLabel"
+                           style="-fx-text-fill: #0F172A; -fx-font-size: 18; -fx-font-weight: bold;" />
+                    <Label text="Enter the pharmacy and medication details below to send the prescription."
+                           style="-fx-text-fill: #475569; -fx-font-size: 13;" />
+                </VBox>
+
+                <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 14; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
+                    <Label text="Pharmacy Information"
+                           style="-fx-text-fill: #0F766E; -fx-font-size: 15; -fx-font-weight: bold;" />
+
+                    <VBox spacing="6">
+                        <Label text="Pharmacy Name"
+                               style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
+                        <TextField fx:id="pharmacyNameField" promptText="Enter the pharmacy name" />
+                    </VBox>
+
+                    <VBox spacing="6">
+                        <Label text="Pharmacy Address *"
+                               style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
+                        <TextArea fx:id="pharmacyAddressArea" promptText="Enter the pharmacy address" wrapText="true" prefRowCount="3" />
+                    </VBox>
+
+                    <VBox spacing="6">
+                        <Label text="Pharmacy Phone Number *"
+                               style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
+                        <TextField fx:id="pharmacyPhoneField" promptText="Enter the pharmacy phone number" />
+                    </VBox>
+                </VBox>
+
+                <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 14; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
+                    <Label text="Prescription Details"
+                           style="-fx-text-fill: #0F766E; -fx-font-size: 15; -fx-font-weight: bold;" />
+
+                    <VBox spacing="6">
+                        <Label text="Medication Information *"
+                               style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
+                        <TextArea fx:id="medicationInformationArea" promptText="Enter medication name, dosage, quantity, and refill details" wrapText="true" prefRowCount="4" />
+                    </VBox>
+
+                    <VBox spacing="6">
+                        <Label text="Instructions *"
+                               style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
+                        <TextArea fx:id="instructionsArea" promptText="Enter directions for use and any pharmacist notes" wrapText="true" prefRowCount="4" />
+                    </VBox>
+                </VBox>
+
+                <Label fx:id="statusLabel"
+                       style="-fx-text-fill: #0F766E; -fx-font-size: 12; -fx-font-weight: bold;" />
+
+                <HBox spacing="12" style="-fx-alignment: center-right;">
+                    <Button text="Back"
+                            onAction="#onBack"
+                            style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-border-color: #14B8A6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-weight: bold; -fx-padding: 10 18;" />
+                    <Button fx:id="sendButton"
+                            text="Send Prescription"
+                            onAction="#onSendPrescription"
+                            style="-fx-background-color: #14B8A6; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 18;" />
+                </HBox>
+            </VBox>
+        </ScrollPane>
+    </center>
+</BorderPane>

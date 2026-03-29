@@ -1,24 +1,37 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.application.Platform;
+import javafx.util.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.TextStyle;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Controller for displaying patient appointments.
  * Shows all appointments with doctor information and status.
  */
 public class PatientAppointmentsController {
+
+    private static final DateTimeFormatter DISPLAY_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH);
 
     @FXML private VBox appointmentsListVBox;
     @FXML private Label statusLabel;
@@ -28,6 +41,7 @@ public class PatientAppointmentsController {
     private FirebaseService firebaseService;
     private UserContext userContext;
     private List<Appointment> allAppointments = new ArrayList<>();
+    private Timeline refreshTimeline;
 
     @FXML
     public void initialize() {
@@ -41,6 +55,19 @@ public class PatientAppointmentsController {
 
         // Load appointments
         loadAppointments();
+        startRealtimeRefresh();
+    }
+
+    private void startRealtimeRefresh() {
+        refreshTimeline = new Timeline(new KeyFrame(Duration.seconds(30), e -> displayAppointments(filterComboBox.getValue())));
+        refreshTimeline.setCycleCount(Timeline.INDEFINITE);
+        refreshTimeline.play();
+
+        appointmentsListVBox.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null && refreshTimeline != null) {
+                refreshTimeline.stop();
+            }
+        });
     }
 
     /**
@@ -82,15 +109,24 @@ public class PatientAppointmentsController {
     private void displayAppointments(String filter) {
         appointmentsListVBox.getChildren().clear();
 
+        long now = System.currentTimeMillis();
         List<Appointment> toDisplay = new ArrayList<>();
         for (Appointment apt : allAppointments) {
-            if (filter.equals("All") || apt.getStatus().equals(filter)) {
+            if (apt == null || apt.hasPassed(now)) {
+                continue;
+            }
+
+            String status = apt.getStatus() != null ? apt.getStatus() : "";
+            if (filter.equals("All") || status.equals(filter)) {
                 toDisplay.add(apt);
             }
         }
 
         if (toDisplay.isEmpty()) {
-            Label emptyLabel = new Label("No appointments with status: " + filter);
+            String emptyMessage = filter.equals("All")
+                    ? "No upcoming appointments found."
+                    : "No upcoming appointments with status: " + filter;
+            Label emptyLabel = new Label(emptyMessage);
             emptyLabel.setStyle("-fx-text-fill: #7F8C8D; -fx-font-size: 13;");
             appointmentsListVBox.getChildren().add(emptyLabel);
             return;
@@ -164,7 +200,7 @@ public class PatientAppointmentsController {
         if ("SCHEDULED".equals(status)) {
             Button rescheduleBtn = new Button("Reschedule");
             rescheduleBtn.setStyle("-fx-padding: 6 12; -fx-font-size: 11; -fx-cursor: hand;");
-            rescheduleBtn.setOnAction(e -> showStatus("Reschedule feature coming soon", false));
+            rescheduleBtn.setOnAction(e -> showRescheduleDialog(apt));
             buttonBox.getChildren().add(rescheduleBtn);
 
             Button cancelBtn = new Button("Cancel");
@@ -178,6 +214,335 @@ public class PatientAppointmentsController {
         }
 
         return card;
+    }
+
+    /**
+     * Show reschedule dialog and allow selecting a slot based on doctor's availability.
+     */
+    private void showRescheduleDialog(Appointment apt) {
+        if (apt == null || apt.getAppointmentId() == null || apt.getDoctorUid() == null) {
+            showStatus("Invalid appointment selected", true);
+            return;
+        }
+
+        showStatus("Loading doctor availability...", false);
+
+        firebaseService.getDoctorByUid(apt.getDoctorUid())
+                .thenAccept(doctor -> Platform.runLater(() -> openRescheduleDialog(apt, doctor)))
+                .exceptionally(e -> {
+                    Platform.runLater(() ->
+                            showStatus("Failed to load doctor availability: " + cleanErrorMessage(e), true)
+                    );
+                    return null;
+                });
+    }
+
+    private void openRescheduleDialog(Appointment apt, Doctor doctor) {
+        Map<String, String> availability = doctor != null ? doctor.getAvailability() : null;
+        if (availability == null || availability.isEmpty()) {
+            showStatus("Doctor availability is not set. Please try again later.", true);
+            return;
+        }
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Reschedule Appointment");
+        dialog.setHeaderText("Select a new time with Dr. " + (apt.getDoctorName() != null ? apt.getDoctorName() : "Doctor"));
+
+        ButtonType rescheduleType = new ButtonType("Reschedule", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(rescheduleType, ButtonType.CANCEL);
+
+        DatePicker datePicker = new DatePicker();
+        ComboBox<String> timeSlotCombo = new ComboBox<>();
+        timeSlotCombo.setPrefWidth(220);
+        timeSlotCombo.setDisable(true);
+
+        Label dialogStatus = new Label("Select a date to see available times.");
+        dialogStatus.setStyle("-fx-text-fill: #7F8C8D; -fx-font-size: 11;");
+
+        datePicker.setDayCellFactory(datePickerControl -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || item == null) {
+                    setDisable(true);
+                    return;
+                }
+
+                boolean isPast = item.isBefore(LocalDate.now().plusDays(1));
+                boolean availableOnDay = isDoctorAvailableOnDate(doctor, item);
+
+                if (isPast || !availableOnDay) {
+                    setDisable(true);
+                    setStyle("-fx-background-color: #EAEAEA;");
+                }
+            }
+        });
+
+        LocalDate currentDate = parseDate(apt.getAppointmentDate());
+        if (currentDate != null && !currentDate.isBefore(LocalDate.now().plusDays(1))
+                && isDoctorAvailableOnDate(doctor, currentDate)) {
+            datePicker.setValue(currentDate);
+        }
+
+        datePicker.valueProperty().addListener((obs, oldVal, newVal) ->
+                updateRescheduleSlots(doctor, apt, newVal, timeSlotCombo, dialogStatus)
+        );
+
+        Node confirmButton = dialog.getDialogPane().lookupButton(rescheduleType);
+        confirmButton.setDisable(true);
+
+        Runnable refreshConfirm = () -> {
+            LocalDate selectedDate = datePicker.getValue();
+            String selectedSlot = timeSlotCombo.getValue();
+            confirmButton.setDisable(selectedDate == null || selectedSlot == null || selectedSlot.isBlank());
+        };
+
+        datePicker.valueProperty().addListener((obs, oldVal, newVal) -> refreshConfirm.run());
+        timeSlotCombo.valueProperty().addListener((obs, oldVal, newVal) -> refreshConfirm.run());
+
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(5));
+        content.getChildren().addAll(
+                new Label("New date:"),
+                datePicker,
+                new Label("New time:"),
+                timeSlotCombo,
+                dialogStatus
+        );
+
+        dialog.getDialogPane().setContent(content);
+
+        if (datePicker.getValue() != null) {
+            updateRescheduleSlots(doctor, apt, datePicker.getValue(), timeSlotCombo, dialogStatus);
+        }
+
+        ButtonType result = dialog.showAndWait().orElse(ButtonType.CANCEL);
+        if (result != rescheduleType) {
+            showStatus("Reschedule cancelled", false);
+            return;
+        }
+
+        LocalDate selectedDate = datePicker.getValue();
+        String selectedSlot = timeSlotCombo.getValue();
+
+        if (selectedDate == null || selectedSlot == null || selectedSlot.isBlank()) {
+            showStatus("Please choose a valid date and time.", true);
+            return;
+        }
+
+        if (selectedDate.toString().equals(apt.getAppointmentDate())
+                && selectedSlot.equalsIgnoreCase(apt.getAppointmentSlot())) {
+            showStatus("Selected date/time is the same as your current appointment.", false);
+            return;
+        }
+
+        rescheduleAppointment(apt, selectedDate, selectedSlot);
+    }
+
+    private void updateRescheduleSlots(Doctor doctor,
+                                       Appointment apt,
+                                       LocalDate selectedDate,
+                                       ComboBox<String> timeSlotCombo,
+                                       Label dialogStatus) {
+        timeSlotCombo.getItems().clear();
+        timeSlotCombo.setValue(null);
+        timeSlotCombo.setDisable(true);
+
+        if (selectedDate == null) {
+            dialogStatus.setText("Select a date to see available times.");
+            dialogStatus.setStyle("-fx-text-fill: #7F8C8D; -fx-font-size: 11;");
+            return;
+        }
+
+        String dayName = getDayName(selectedDate);
+        String dayAvailability = doctor.getAvailability().get(dayName);
+
+        if (dayAvailability == null || dayAvailability.isBlank()) {
+            dialogStatus.setText("Doctor is not available on " + dayName + ".");
+            dialogStatus.setStyle("-fx-text-fill: #E74C3C; -fx-font-size: 11;");
+            return;
+        }
+
+        List<String> doctorSlots = generateSlotsFromAvailability(dayAvailability);
+        if (doctorSlots.isEmpty()) {
+            dialogStatus.setText("No valid time ranges are configured for this day.");
+            dialogStatus.setStyle("-fx-text-fill: #E74C3C; -fx-font-size: 11;");
+            return;
+        }
+
+        dialogStatus.setText("Loading available times...");
+        dialogStatus.setStyle("-fx-text-fill: #7F8C8D; -fx-font-size: 11;");
+
+        firebaseService.getBookedTimesForDoctorAndDate(doctor.getUid(), selectedDate.toString())
+                .thenAccept(bookedSlots -> Platform.runLater(() -> {
+                    List<String> remainingSlots = new ArrayList<>();
+
+                    for (String slot : doctorSlots) {
+                        if (!bookedSlots.contains(slot)) {
+                            remainingSlots.add(slot);
+                        }
+                    }
+
+                    // Keep the currently booked slot selectable when rescheduling on the same date.
+                    if (selectedDate.toString().equals(apt.getAppointmentDate())
+                            && apt.getAppointmentSlot() != null
+                            && doctorSlots.contains(apt.getAppointmentSlot())
+                            && !remainingSlots.contains(apt.getAppointmentSlot())) {
+                        remainingSlots.add(apt.getAppointmentSlot());
+                    }
+
+                    remainingSlots.sort((a, b) -> parseTime(a).compareTo(parseTime(b)));
+
+                    timeSlotCombo.getItems().setAll(remainingSlots);
+                    timeSlotCombo.setDisable(remainingSlots.isEmpty());
+
+                    if (remainingSlots.isEmpty()) {
+                        dialogStatus.setText("No available slots on this date.");
+                        dialogStatus.setStyle("-fx-text-fill: #E74C3C; -fx-font-size: 11;");
+                    } else {
+                        dialogStatus.setText("Select one of the available times.");
+                        dialogStatus.setStyle("-fx-text-fill: #27AE60; -fx-font-size: 11;");
+
+                        if (selectedDate.toString().equals(apt.getAppointmentDate())
+                                && apt.getAppointmentSlot() != null
+                                && remainingSlots.contains(apt.getAppointmentSlot())) {
+                            timeSlotCombo.setValue(apt.getAppointmentSlot());
+                        }
+                    }
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> {
+                        dialogStatus.setText("Failed to load slots: " + cleanErrorMessage(e));
+                        dialogStatus.setStyle("-fx-text-fill: #E74C3C; -fx-font-size: 11;");
+                    });
+                    return null;
+                });
+    }
+
+    private void rescheduleAppointment(Appointment apt, LocalDate newDate, String newSlot) {
+        if (apt == null || apt.getAppointmentId() == null) {
+            showStatus("Invalid appointment", true);
+            return;
+        }
+
+        showStatus("Rescheduling appointment...", false);
+
+        firebaseService.isSlotStillAvailable(apt.getDoctorUid(), newDate.toString(), newSlot)
+                .thenCompose(isAvailable -> {
+                    if (!isAvailable) {
+                        throw new RuntimeException("That time was just booked. Please choose another slot.");
+                    }
+
+                    LocalTime localTime = parseTime(newSlot);
+                    LocalDateTime localDateTime = LocalDateTime.of(newDate, localTime);
+                    long newTimestamp = ZonedDateTime.of(localDateTime, ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli();
+
+                    apt.setAppointmentDate(newDate.toString());
+                    apt.setAppointmentSlot(newSlot);
+                    apt.setAppointmentTime(newDate + " " + newSlot);
+                    apt.setAppointmentDateTime(newTimestamp);
+
+                    return firebaseService.updateAppointment(apt);
+                })
+                .thenAccept(v -> Platform.runLater(() -> {
+                    showStatus("Appointment rescheduled successfully", false);
+                    loadAppointments();
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() ->
+                            showStatus("Failed to reschedule appointment: " + cleanErrorMessage(e), true)
+                    );
+                    return null;
+                });
+    }
+
+    private boolean isDoctorAvailableOnDate(Doctor doctor, LocalDate date) {
+        if (doctor == null || date == null) {
+            return false;
+        }
+
+        Map<String, String> availability = doctor.getAvailability();
+        if (availability == null || availability.isEmpty()) {
+            return false;
+        }
+
+        String value = availability.get(getDayName(date));
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private List<String> generateSlotsFromAvailability(String availabilityString) {
+        List<String> result = new ArrayList<>();
+        if (availabilityString == null || availabilityString.isBlank()) {
+            return result;
+        }
+
+        String[] ranges = availabilityString.split(",");
+        for (String range : ranges) {
+            String[] parts = range.trim().split("\\s*-\\s*");
+            if (parts.length != 2) {
+                continue;
+            }
+
+            try {
+                LocalTime start = parseTime(parts[0]);
+                LocalTime end = parseTime(parts[1]);
+
+                LocalTime current = start;
+                while (current.isBefore(end)) {
+                    result.add(formatTime(current));
+                    current = current.plusMinutes(30);
+                }
+            } catch (Exception ignored) {
+                // Ignore invalid ranges and continue with valid configured ranges.
+            }
+        }
+
+        return result;
+    }
+
+    private LocalDate parseDate(String dateString) {
+        if (dateString == null || dateString.isBlank()) {
+            return null;
+        }
+
+        try {
+            return LocalDate.parse(dateString);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private LocalTime parseTime(String timeString) {
+        return LocalTime.parse(timeString.trim().toUpperCase(Locale.ENGLISH), DISPLAY_TIME_FORMAT);
+    }
+
+    private String formatTime(LocalTime time) {
+        return time.format(DISPLAY_TIME_FORMAT).toUpperCase(Locale.ENGLISH);
+    }
+
+    private String getDayName(LocalDate date) {
+        return date.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+    }
+
+    private String cleanErrorMessage(Throwable e) {
+        if (e == null) {
+            return "Unknown error.";
+        }
+
+        Throwable cause = e;
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+
+        String message = cause.getMessage();
+        if (message == null || message.isBlank()) {
+            return "Unknown error.";
+        }
+
+        return message.replace("java.lang.RuntimeException: ", "").trim();
     }
 
     /**

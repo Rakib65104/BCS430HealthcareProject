@@ -15,6 +15,7 @@ public class UserContext {
 
     // For patient appointment booking
     private Doctor selectedDoctor;
+    private PatientProfile selectedPatientProfile;
 
     private UserContext() {
     }
@@ -46,6 +47,7 @@ public class UserContext {
         this.patientProfile = null;
         this.doctorProfile = null;
         this.selectedDoctor = null;
+        this.selectedPatientProfile = null;
     }
 
     public String getUid() {
@@ -118,5 +120,17 @@ public class UserContext {
 
     public void clearSelectedDoctor() {
         this.selectedDoctor = null;
+    }
+
+    public void setSelectedPatientProfile(PatientProfile selectedPatientProfile) {
+        this.selectedPatientProfile = selectedPatientProfile;
+    }
+
+    public PatientProfile getSelectedPatientProfile() {
+        return selectedPatientProfile;
+    }
+
+    public void clearSelectedPatientProfile() {
+        this.selectedPatientProfile = null;
     }
 }

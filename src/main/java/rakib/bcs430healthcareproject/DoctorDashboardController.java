@@ -1,8 +1,14 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.util.Duration;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Controller for the Doctor Dashboard.
@@ -10,7 +16,11 @@ import javafx.scene.control.Label;
  */
 public class DoctorDashboardController {
 
+    private static final DateTimeFormatter DATE_TIME_DISPLAY_FORMAT =
+            DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy - h:mm:ss a");
+
     @FXML private Label welcomeLabel;
+    @FXML private Label currentDateTimeLabel;
     @FXML private Label doctorNameLabel;
     @FXML private Label doctorEmailLabel;
 
@@ -19,11 +29,11 @@ public class DoctorDashboardController {
     @FXML private Button profileButton;
     @FXML private Button logoutButton;
 
-    private FirebaseService firebaseService;
+    private Timeline clockTimeline;
 
     @FXML
     public void initialize() {
-        firebaseService = new FirebaseService();
+        startClock();
 
         UserContext userContext = UserContext.getInstance();
 
@@ -53,11 +63,27 @@ public class DoctorDashboardController {
         }
     }
 
+    private void startClock() {
+        updateClockLabel();
+        clockTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> updateClockLabel()));
+        clockTimeline.setCycleCount(Timeline.INDEFINITE);
+        clockTimeline.play();
+
+        currentDateTimeLabel.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null && clockTimeline != null) {
+                clockTimeline.stop();
+            }
+        });
+    }
+
+    private void updateClockLabel() {
+        currentDateTimeLabel.setText("Today: " + LocalDateTime.now().format(DATE_TIME_DISPLAY_FORMAT));
+    }
+
     @FXML
     private void onPatients() {
         System.out.println("Navigating to patients list...");
-        // TODO later:
-        // SceneRouter.go("doctor-patients-view.fxml", "My Patients");
+        SceneRouter.go("doctor-patients-view.fxml", "My Patients");
     }
 
     @FXML

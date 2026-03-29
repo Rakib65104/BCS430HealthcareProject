@@ -1,0 +1,18 @@
+async function notifyAppointment({ patientEmail, doctorEmail, date, time, appointmentId }) {
+  const patientMsg = {
+    to: patientEmail,
+    subject: 'Appointment requested',
+    text: `Your appointment for ${date} at ${time} was received. ID: ${appointmentId}.`,
+  };
+
+  const doctorMsg = {
+    to: doctorEmail,
+    subject: 'New patient appointment',
+    text: `New appointment scheduled for ${date} at ${time}. Appointment ID: ${appointmentId}.`,
+  };
+
+  await Promise.all([
+    sendAppointmentEmail(patientMsg),
+    sendAppointmentEmail(doctorMsg),
+  ]);
+}

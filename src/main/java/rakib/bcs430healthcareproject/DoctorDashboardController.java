@@ -89,8 +89,7 @@ public class DoctorDashboardController {
     @FXML
     private void onSchedule() {
         System.out.println("Navigating to schedule...");
-        // TODO later:
-        // SceneRouter.go("doctor-schedule-view.fxml", "Schedule");
+        SceneRouter.go("doctor-schedule-view.fxml", "Doctor Schedule");
     }
 
     @FXML

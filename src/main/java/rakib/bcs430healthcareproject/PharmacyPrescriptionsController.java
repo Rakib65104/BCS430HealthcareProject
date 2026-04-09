@@ -138,6 +138,12 @@ public class PharmacyPrescriptionsController {
 
         HBox actionRow = new HBox(10);
 
+        Button viewProfileButton = new Button("View Patient Profile");
+        viewProfileButton.setStyle("-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
+        viewProfileButton.setDisable(prescription.getPatientUid() == null || prescription.getPatientUid().isBlank());
+        viewProfileButton.setOnAction(event -> viewPatientProfile(prescription, viewProfileButton));
+        actionRow.getChildren().add(viewProfileButton);
+
         if (Prescription.STATUS_FILLED.equalsIgnoreCase(prescription.getStatus())
                 || Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(prescription.getStatus())) {
             Label filledLabel = new Label("Filled: " + formatTimestamp(prescription.getFilledAt())
@@ -171,6 +177,29 @@ public class PharmacyPrescriptionsController {
         }
 
         return card;
+    }
+
+    private void viewPatientProfile(Prescription prescription, Button viewProfileButton) {
+        if (prescription == null || prescription.getPatientUid() == null || prescription.getPatientUid().isBlank()) {
+            showStatus("Patient profile is unavailable for this prescription.", true);
+            return;
+        }
+
+        viewProfileButton.setDisable(true);
+        showStatus("Loading patient profile...", false);
+
+        firebaseService.getPatientProfile(prescription.getPatientUid())
+                .thenAccept(patientProfile -> Platform.runLater(() -> {
+                    userContext.setSelectedPatientProfile(patientProfile);
+                    SceneRouter.go("patient-profile-view.fxml", "Patient Profile");
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> {
+                        viewProfileButton.setDisable(false);
+                        showStatus("Failed to load patient profile: " + cleanErrorMessage(e), true);
+                    });
+                    return null;
+                });
     }
 
     private void markPrescriptionFilled(Prescription prescription, Button fillButton) {

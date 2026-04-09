@@ -27,6 +27,8 @@ public class PatientProfile {
     // Insurance Information
     private String insuranceNumber;
     private String insuranceCompany;
+    private String insurancePlanType;
+    private String insuranceGroupNumber;
     private String preferredPharmacyUid;
     private String preferredPharmacyName;
     private String preferredPharmacyAddress;
@@ -104,6 +106,12 @@ public class PatientProfile {
     public String getInsuranceCompany() { return insuranceCompany; }
     public void setInsuranceCompany(String insuranceCompany) { this.insuranceCompany = insuranceCompany; }
 
+    public String getInsurancePlanType() { return insurancePlanType; }
+    public void setInsurancePlanType(String insurancePlanType) { this.insurancePlanType = insurancePlanType; }
+
+    public String getInsuranceGroupNumber() { return insuranceGroupNumber; }
+    public void setInsuranceGroupNumber(String insuranceGroupNumber) { this.insuranceGroupNumber = insuranceGroupNumber; }
+
     public String getPreferredPharmacyUid() { return preferredPharmacyUid; }
     public void setPreferredPharmacyUid(String preferredPharmacyUid) { this.preferredPharmacyUid = preferredPharmacyUid; }
 
@@ -174,6 +182,8 @@ public class PatientProfile {
         result.put("gender", gender);
         result.put("insuranceNumber", insuranceNumber);
         result.put("insuranceCompany", insuranceCompany);
+        result.put("insurancePlanType", insurancePlanType);
+        result.put("insuranceGroupNumber", insuranceGroupNumber);
         result.put("preferredPharmacyUid", preferredPharmacyUid);
         result.put("preferredPharmacyName", preferredPharmacyName);
         result.put("preferredPharmacyAddress", preferredPharmacyAddress);

@@ -76,15 +76,26 @@
                 <VBox style="-fx-border-color: #E8E8E8; -fx-border-radius: 5; -fx-padding: 20; -fx-spacing: 15; -fx-background-color: white;">
                     <Label text="Insurance Information" style="-fx-text-fill: #2C3E50; -fx-font-size: 16; -fx-font-weight: bold;"/>
                     
-                    <!-- Insurance Number and Company Row -->
+                    <!-- Insurance Company and Number Row -->
                     <HBox spacing="20">
-                        <VBox spacing="5" HBox.hgrow="ALWAYS">
-                            <Label text="Insurance Number" style="-fx-text-fill: #333; -fx-font-weight: bold;"/>
-                            <TextField fx:id="insuranceNumberField" promptText="Enter insurance number"/>
-                        </VBox>
                         <VBox spacing="5" HBox.hgrow="ALWAYS">
                             <Label text="Insurance Company" style="-fx-text-fill: #333; -fx-font-weight: bold;"/>
                             <ComboBox fx:id="insuranceCompanyComboBox" promptText="Select or type insurance company" style="-fx-padding: 8;"/>
+                        </VBox>
+                        <VBox spacing="5" HBox.hgrow="ALWAYS">
+                            <Label text="Insurance Number" style="-fx-text-fill: #333; -fx-font-weight: bold;"/>
+                            <TextField fx:id="insuranceNumberField" promptText="Select insurance company first"/>
+                        </VBox>
+                    </HBox>
+
+                    <HBox spacing="20">
+                        <VBox spacing="5" HBox.hgrow="ALWAYS">
+                            <Label text="Plan Type" style="-fx-text-fill: #333; -fx-font-weight: bold;"/>
+                            <ComboBox fx:id="insurancePlanTypeComboBox" promptText="Select plan type" style="-fx-padding: 8;"/>
+                        </VBox>
+                        <VBox spacing="5" HBox.hgrow="ALWAYS">
+                            <Label text="Group Number" style="-fx-text-fill: #333; -fx-font-weight: bold;"/>
+                            <TextField fx:id="insuranceGroupNumberField" promptText="Enter group number"/>
                         </VBox>
                     </HBox>
                 </VBox>

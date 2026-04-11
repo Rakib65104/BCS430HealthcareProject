@@ -108,6 +108,7 @@ public class PatientPrescriptionsController {
         Label dosageLabel = createDetailLabel("Dosage: " + valueOrDefault(getDosage(prescription), "Not provided"));
         Label quantityLabel = createDetailLabel("Quantity: " + valueOrDefault(getQuantity(prescription), "Not provided"));
         Label refillLabel = createDetailLabel("Refill Details: " + getRefillDetails(prescription));
+        Label refillIntervalLabel = createDetailLabel("Refill Schedule: " + getRefillIntervalText(prescription));
 
         Label pharmacyLabel = new Label("Pharmacy: " + formatPharmacy(prescription));
         pharmacyLabel.setWrapText(true);
@@ -118,7 +119,7 @@ public class PatientPrescriptionsController {
         Label sentLabel = new Label("Sent: " + formatTimestamp(prescription.getCreatedAt()));
         sentLabel.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
 
-        card.getChildren().addAll(topRow, doctorLabel, dosageLabel, quantityLabel, refillLabel, pharmacyLabel, instructionsLabel, sentLabel);
+        card.getChildren().addAll(topRow, doctorLabel, dosageLabel, quantityLabel, refillLabel, refillIntervalLabel, pharmacyLabel, instructionsLabel, sentLabel);
 
         if (Boolean.TRUE.equals(prescription.getRefillRequested())) {
             Label refillRequestLabel = new Label("Refill requested by Dr. "
@@ -133,6 +134,14 @@ public class PatientPrescriptionsController {
                     + " by " + valueOrDefault(prescription.getFilledBy(), valueOrDefault(prescription.getPharmacyName(), "Pharmacy")));
             filledLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 12; -fx-font-weight: bold;");
             card.getChildren().add(filledLabel);
+        }
+
+        String refillAvailability = buildRefillAvailabilityMessage(prescription);
+        if (refillAvailability != null) {
+            Label refillAvailabilityLabel = new Label(refillAvailability);
+            refillAvailabilityLabel.setWrapText(true);
+            refillAvailabilityLabel.setStyle(getRefillAvailabilityStyle(prescription));
+            card.getChildren().add(refillAvailabilityLabel);
         }
 
         return card;
@@ -215,6 +224,12 @@ public class PatientPrescriptionsController {
         return valueOrDefault(firstNonBlank(prescription.getRefillDetails(), extractMedicationPart(prescription.getMedicationInformation(), "Refills: ", null)), "Not provided");
     }
 
+    private String getRefillIntervalText(Prescription prescription) {
+        return PrescriptionRefillSupport.formatRefillInterval(
+                PrescriptionRefillSupport.getRefillIntervalDays(prescription)
+        );
+    }
+
     private String firstNonBlank(String primary, String fallback) {
         return primary != null && !primary.isBlank() ? primary : fallback;
     }
@@ -239,5 +254,43 @@ public class PatientPrescriptionsController {
             return "REFILL REQUESTED";
         }
         return valueOrDefault(status, Prescription.STATUS_SENT);
+    }
+
+    private boolean hasAvailableRefills(Prescription prescription) {
+        Integer remainingRefills = PrescriptionRefillSupport.getRemainingRefills(prescription);
+        return remainingRefills != null && remainingRefills > 0;
+    }
+
+    private boolean isPatientRefillStatus(Prescription prescription) {
+        if (prescription == null) {
+            return false;
+        }
+
+        String status = prescription.getStatus();
+        return Prescription.STATUS_FILLED.equalsIgnoreCase(status)
+                || Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status);
+    }
+
+    private String buildRefillAvailabilityMessage(Prescription prescription) {
+        if (!isPatientRefillStatus(prescription) || !hasAvailableRefills(prescription)) {
+            return null;
+        }
+
+        Long nextRefillEligibleAt = PrescriptionRefillSupport.getNextRefillEligibleAt(prescription);
+        if (nextRefillEligibleAt == null) {
+            return "Your next refill date is not available yet.";
+        }
+
+        if (PrescriptionRefillSupport.isRefillEligibleNow(prescription)) {
+            return "Next refill: available now since " + formatTimestamp(nextRefillEligibleAt) + ".";
+        }
+
+        return "Next refill: available on " + formatTimestamp(nextRefillEligibleAt) + ".";
+    }
+
+    private String getRefillAvailabilityStyle(Prescription prescription) {
+        return PrescriptionRefillSupport.isRefillEligibleNow(prescription)
+                ? "-fx-text-fill: #166534; -fx-font-size: 12; -fx-font-weight: bold;"
+                : "-fx-text-fill: #92400E; -fx-font-size: 12; -fx-font-weight: bold;";
     }
 }

@@ -12,8 +12,10 @@ import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class DoctorSearchController {
 
@@ -28,6 +30,7 @@ public class DoctorSearchController {
     @FXML private WebView mapWebView;
 
     private FirebaseService firebaseService;
+    private UserContext userContext;
     private List<Doctor> allDoctors = new ArrayList<>();
     private List<Doctor> filteredDoctors = new ArrayList<>();
 
@@ -36,6 +39,7 @@ public class DoctorSearchController {
     @FXML
     public void initialize() {
         firebaseService = new FirebaseService();
+        userContext = UserContext.getInstance();
         setupUI();
         loadMap();
         loadDoctors();
@@ -216,6 +220,10 @@ public class DoctorSearchController {
             Label locationLabel = new Label(location);
             locationLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #34495E;");
 
+            Label insuranceLabel = new Label(buildInsuranceLabel(doctor));
+            insuranceLabel.setWrapText(true);
+            insuranceLabel.setStyle(getInsuranceLabelStyle(doctor));
+
             // Accepting new patients status
             boolean accepting = Boolean.TRUE.equals(doctor.getAcceptingNewPatients());
             Label acceptingLabel = new Label(
@@ -254,6 +262,7 @@ public class DoctorSearchController {
                     specialtyLabel,
                     clinicLabel,
                     locationLabel,
+                    insuranceLabel,
                     acceptingLabel,
                     buttonRow
             );
@@ -362,6 +371,10 @@ public class DoctorSearchController {
         if (!phone.isBlank()) {
             sb.append("<div>Phone: ").append(phone).append("</div>");
         }
+        String insuranceText = buildInsuranceLabel(doctor);
+        if (!insuranceText.isBlank()) {
+            sb.append("<div>").append(insuranceText).append("</div>");
+        }
 
         return sb.toString();
     }
@@ -416,5 +429,62 @@ public class DoctorSearchController {
                 showStatus("Doctor not found", true);
             }
         });
+    }
+
+    private String buildInsuranceLabel(Doctor doctor) {
+        List<String> acceptedInsurance = parseInsuranceInfo(doctor != null ? doctor.getInsuranceInfo() : null);
+        if (acceptedInsurance.isEmpty()) {
+            return "Insurance: Not listed";
+        }
+
+        String patientInsurance = getPatientInsurance();
+        if (patientInsurance == null || patientInsurance.isBlank()) {
+            return "Insurance accepted: " + String.join(", ", acceptedInsurance);
+        }
+
+        boolean acceptsPatientInsurance = acceptedInsurance.stream()
+                .anyMatch(insurance -> insurance.equalsIgnoreCase(patientInsurance));
+
+        if (acceptsPatientInsurance) {
+            return "Accepts your insurance: " + patientInsurance;
+        }
+
+        return "Does not list your insurance (" + patientInsurance + "). Accepts: " + String.join(", ", acceptedInsurance);
+    }
+
+    private String getInsuranceLabelStyle(Doctor doctor) {
+        String patientInsurance = getPatientInsurance();
+        if (patientInsurance == null || patientInsurance.isBlank()) {
+            return "-fx-font-size: 11; -fx-text-fill: #34495E;";
+        }
+
+        boolean acceptsPatientInsurance = parseInsuranceInfo(doctor != null ? doctor.getInsuranceInfo() : null)
+                .stream()
+                .anyMatch(insurance -> insurance.equalsIgnoreCase(patientInsurance));
+
+        return acceptsPatientInsurance
+                ? "-fx-font-size: 11; -fx-text-fill: #166534; -fx-font-weight: bold;"
+                : "-fx-font-size: 11; -fx-text-fill: #B45309; -fx-font-weight: bold;";
+    }
+
+    private String getPatientInsurance() {
+        if (userContext == null || !userContext.isPatient() || userContext.getProfile() == null) {
+            return null;
+        }
+
+        String insuranceCompany = userContext.getProfile().getInsuranceCompany();
+        return insuranceCompany == null || insuranceCompany.isBlank() ? null : insuranceCompany.trim();
+    }
+
+    private List<String> parseInsuranceInfo(String insuranceInfo) {
+        if (insuranceInfo == null || insuranceInfo.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(insuranceInfo.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
     }
 }

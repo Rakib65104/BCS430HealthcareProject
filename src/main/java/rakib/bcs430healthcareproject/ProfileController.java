@@ -25,6 +25,8 @@ public class ProfileController {
     @FXML private ComboBox<String> genderComboBox;
     @FXML private TextField insuranceNumberField;
     @FXML private ComboBox<String> insuranceCompanyComboBox;
+    @FXML private ComboBox<String> insurancePlanTypeComboBox;
+    @FXML private TextField insuranceGroupNumberField;
     @FXML private ComboBox<PharmacyOption> preferredPickupPharmacyComboBox;
     @FXML private TextField emailField;
     @FXML private TextField phoneField;
@@ -47,6 +49,7 @@ public class ProfileController {
     private PatientProfile currentProfile;
     private boolean isEditMode = false;
     private boolean isDoctorReadOnlyView = false;
+    private boolean isPharmacyReadOnlyView = false;
     private List<PharmacyOption> pharmacyOptions = new ArrayList<>();
 
     @FXML
@@ -60,7 +63,12 @@ public class ProfileController {
         vaccinationStatusComboBox.getItems().addAll("Not specified", "Up to date", "Partially vaccinated", "Not vaccinated");
         insuranceCompanyComboBox.getItems().addAll(InsuranceSupport.commonInsuranceProviders());
         insuranceCompanyComboBox.setEditable(true);
+        insurancePlanTypeComboBox.getItems().addAll("Not specified", "HMO", "PPO", "EPO", "POS", "HDHP", "Medicaid", "Medicare", "Other");
         preferredPickupPharmacyComboBox.getItems().add(new PharmacyOption(null, "No preferred pharmacy selected", "", ""));
+        insuranceCompanyComboBox.valueProperty().addListener((obs, oldVal, newVal) -> updateInsuranceNumberAvailability());
+        if (insuranceCompanyComboBox.getEditor() != null) {
+            insuranceCompanyComboBox.getEditor().textProperty().addListener((obs, oldVal, newVal) -> updateInsuranceNumberAvailability());
+        }
         
         // Setup height dropdown
         heightComboBox.getItems().addAll(
@@ -87,6 +95,10 @@ public class ProfileController {
             isDoctorReadOnlyView = true;
             currentProfile = userContext.getSelectedPatientProfile();
             titleLabel.setText("Patient Profile");
+        } else if (userContext.isPharmacy() && userContext.getSelectedPatientProfile() != null) {
+            isPharmacyReadOnlyView = true;
+            currentProfile = userContext.getSelectedPatientProfile();
+            titleLabel.setText("Patient Insurance Profile");
         } else {
             currentProfile = userContext.getProfile();
             titleLabel.setText("My Profile");
@@ -126,6 +138,8 @@ public class ProfileController {
         
         insuranceNumberField.setText(currentProfile.getInsuranceNumber() != null ? currentProfile.getInsuranceNumber() : "");
         insuranceCompanyComboBox.setValue(currentProfile.getInsuranceCompany() != null ? currentProfile.getInsuranceCompany() : "");
+        insurancePlanTypeComboBox.setValue(currentProfile.getInsurancePlanType() != null ? currentProfile.getInsurancePlanType() : "Not specified");
+        insuranceGroupNumberField.setText(currentProfile.getInsuranceGroupNumber() != null ? currentProfile.getInsuranceGroupNumber() : "");
         selectPreferredPharmacy();
         
         String bloodType = currentProfile.getBloodType() != null ? currentProfile.getBloodType() : "Not specified";
@@ -146,12 +160,13 @@ public class ProfileController {
         medicalHistoryArea.setText(currentProfile.getMedicalHistory() != null ? currentProfile.getMedicalHistory() : "");
         
         setFieldsEditable(false);
+        updateInsuranceNumberAvailability();
     }
 
     @FXML
     private void onEdit() {
-        if (isDoctorReadOnlyView) {
-            showStatus("Doctors can only view patient profiles here.", true);
+        if (isReadOnlyPatientView()) {
+            showStatus(readOnlyViewMessage(), true);
             return;
         }
         isEditMode = true;
@@ -162,8 +177,8 @@ public class ProfileController {
 
     @FXML
     private void onSave() {
-        if (isDoctorReadOnlyView) {
-            showStatus("Doctors can only view patient profiles here.", true);
+        if (isReadOnlyPatientView()) {
+            showStatus(readOnlyViewMessage(), true);
             return;
         }
         // Validate required fields
@@ -205,11 +220,18 @@ public class ProfileController {
             currentProfile.setPhoneNumber(phoneField.getText().trim());
         }
         
-        if (insuranceNumberField.getText() != null) {
+        String insuranceCompany = readInsuranceCompany();
+        if (insuranceCompany == null || insuranceCompany.isBlank()) {
+            currentProfile.setInsuranceNumber(null);
+            currentProfile.setInsurancePlanType(null);
+            currentProfile.setInsuranceGroupNumber(null);
+        } else if (insuranceNumberField.getText() != null) {
             currentProfile.setInsuranceNumber(insuranceNumberField.getText().trim());
+            currentProfile.setInsurancePlanType(readInsurancePlanType());
+            currentProfile.setInsuranceGroupNumber(readTrimmedText(insuranceGroupNumberField));
         }
         
-        currentProfile.setInsuranceCompany(readInsuranceCompany());
+        currentProfile.setInsuranceCompany(insuranceCompany);
 
         PharmacyOption preferredOption = preferredPickupPharmacyComboBox.getValue();
         if (preferredOption == null || preferredOption.uid == null || preferredOption.uid.isBlank()) {
@@ -300,6 +322,11 @@ public class ProfileController {
             SceneRouter.go("doctor-patients-view.fxml", "My Patients");
             return;
         }
+        if (isPharmacyReadOnlyView) {
+            userContext.clearSelectedPatientProfile();
+            SceneRouter.go("pharmacy-prescriptions-view.fxml", "Pharmacy Portal");
+            return;
+        }
 
         SceneRouter.go("patient-dashboard-view.fxml", "Patient Dashboard");
     }
@@ -317,6 +344,8 @@ public class ProfileController {
         insuranceNumberField.setEditable(editable);
         insuranceCompanyComboBox.setDisable(!editable);
         insuranceCompanyComboBox.setEditable(editable);
+        insurancePlanTypeComboBox.setDisable(!editable);
+        insuranceGroupNumberField.setEditable(editable);
         preferredPickupPharmacyComboBox.setDisable(!editable);
         bloodTypeComboBox.setDisable(!editable);
         vaccinationStatusComboBox.setDisable(!editable);
@@ -326,13 +355,14 @@ public class ProfileController {
         medicalHistoryArea.setEditable(editable);
         currentMedicationsArea.setEditable(editable);
         chronicConditionsArea.setEditable(editable);
+        updateInsuranceNumberAvailability();
     }
 
     /**
      * Update button visibility based on current mode
      */
     private void updateButtonVisibility() {
-        if (isDoctorReadOnlyView) {
+        if (isReadOnlyPatientView()) {
             editButton.setManaged(false);
             editButton.setVisible(false);
             saveButton.setManaged(false);
@@ -473,6 +503,57 @@ public class ProfileController {
 
         String selectedValue = insuranceCompanyComboBox.getValue();
         return selectedValue == null || selectedValue.isBlank() ? null : selectedValue.trim();
+    }
+
+    private String readInsurancePlanType() {
+        String selectedValue = insurancePlanTypeComboBox.getValue();
+        if (selectedValue == null || selectedValue.isBlank() || "Not specified".equalsIgnoreCase(selectedValue.trim())) {
+            return null;
+        }
+        return selectedValue.trim();
+    }
+
+    private String readTrimmedText(TextField field) {
+        if (field == null || field.getText() == null) {
+            return null;
+        }
+
+        String value = field.getText().trim();
+        return value.isBlank() ? null : value;
+    }
+
+    private void updateInsuranceNumberAvailability() {
+        boolean hasInsuranceCompany = readInsuranceCompany() != null;
+        boolean allowEditing = !isReadOnlyPatientView() && isEditMode && hasInsuranceCompany;
+
+        insuranceNumberField.setEditable(allowEditing);
+        insuranceNumberField.setDisable(!allowEditing && !hasInsuranceCompany && !isReadOnlyPatientView());
+        insuranceNumberField.setPromptText(hasInsuranceCompany
+                ? "Enter insurance number"
+                : "Select insurance company first");
+        insurancePlanTypeComboBox.setDisable(!allowEditing);
+        insuranceGroupNumberField.setEditable(allowEditing);
+        insuranceGroupNumberField.setDisable(!allowEditing && !hasInsuranceCompany && !isReadOnlyPatientView());
+        insuranceGroupNumberField.setPromptText(hasInsuranceCompany
+                ? "Enter group number"
+                : "Select insurance company first");
+
+        if (!hasInsuranceCompany && !isReadOnlyPatientView()) {
+            insuranceNumberField.clear();
+            insurancePlanTypeComboBox.setValue("Not specified");
+            insuranceGroupNumberField.clear();
+        }
+    }
+
+    private boolean isReadOnlyPatientView() {
+        return isDoctorReadOnlyView || isPharmacyReadOnlyView;
+    }
+
+    private String readOnlyViewMessage() {
+        if (isPharmacyReadOnlyView) {
+            return "Pharmacies can only view patient profiles here.";
+        }
+        return "Doctors can only view patient profiles here.";
     }
 
     private static class PharmacyOption {

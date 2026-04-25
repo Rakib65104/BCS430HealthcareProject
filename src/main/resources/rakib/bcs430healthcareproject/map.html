@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Locations Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: transparent;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        .leaflet-control-zoom a {
+            border-radius: 4px !important;
+        }
+        .leaflet-control-attribution {
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // Initialize the map
+        try {
+            var map = L.map('map', {
+                preferCanvas: true,
+                zoomControl: true
+            }).setView([40.75, -73.45], 10);
+
+            // Add tile layer with multiple subdomains for better loading
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012',
+                maxZoom: 19,
+                subdomains: ['a', 'b', 'c', 'd']
+            }).addTo(map);
+
+            console.log("Map initialized successfully");
+        } catch (e) {
+            console.error("Error initializing map: " + e.message);
+        }
+
+        // Marker storage
+        var markers = [];
+
+        // Remove all markers
+        function clearMarkers() {
+            markers.forEach(function(marker) {
+                map.removeLayer(marker);
+            });
+            markers = [];
+            console.log("Cleared all markers");
+        }
+
+        // Add a marker at specific coordinates
+        function addMarkerAtCoords(lat, lon, name, infoHtml, address, uid) {
+            try {
+                var marker = L.marker([lat, lon]).addTo(map);
+                var popupContent = "<div style='max-width:220px;'>" +
+                    "<strong>" + (name || "Doctor") + "</strong><br>" +
+                    (infoHtml || "") +
+                    "<div style='margin-top:4px;font-size:11px;color:#555;'>" + (address || "") + "</div>" +
+                    "<div style='margin-top:8px;'><button onclick=\"window.javaController.openDoctorProfile('" + uid + "')\" style='padding:4px 8px;background:#3498DB;color:white;border:none;border-radius:4px;cursor:pointer;'>View Profile</button></div>" +
+                    "</div>";
+                marker.bindPopup(popupContent);
+                markers.push(marker);
+                console.log("Marker added at " + lat + ", " + lon + " for " + name);
+            } catch (e) {
+                console.error("Error adding marker: " + e.message);
+            }
+        }
+
+        function addReadOnlyMarkerAtCoords(lat, lon, name, infoHtml, address) {
+            try {
+                var marker = L.marker([lat, lon]).addTo(map);
+                var popupContent = "<div style='max-width:220px;'>" +
+                    "<strong>" + (name || "Location") + "</strong><br>" +
+                    (infoHtml || "") +
+                    "<div style='margin-top:4px;font-size:11px;color:#555;'>" + (address || "") + "</div>" +
+                    "</div>";
+                marker.bindPopup(popupContent);
+                markers.push(marker);
+            } catch (e) {
+                console.error("Error adding read-only marker: " + e.message);
+            }
+        }
+
+        // Geocode an address and add a marker
+        function addMarker(address, name, infoHtml, uid, lat, lon) {
+            console.log("addMarker called with address: '" + address + "', name: '" + name + "', lat: " + lat + ", lon: " + lon);
+            if (lat !== undefined && lat !== null && lon !== undefined && lon !== null &&
+                !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lon))) {
+                // Use provided coordinates
+                console.log("Using provided coordinates");
+                addMarkerAtCoords(parseFloat(lat), parseFloat(lon), name, infoHtml, address, uid);
+                fitMapToMarkers();
+            } else {
+                // Geocode the address
+                if (!address || address.trim().length === 0) {
+                    console.warn("Empty address and no coordinates, skipping marker for " + name);
+                    return;
+                }
+                console.log("Geocoding address: " + address);
+                var url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+                    encodeURIComponent(address);
+                fetch(url, {
+                    headers: {
+                        "Accept-Language": "en"
+                    }
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (!data || data.length === 0) {
+                        console.warn("No geocode result for address:", address, "using default location");
+                        // Use default location if geocoding fails
+                        addMarkerAtCoords(40.75, -73.45, name, infoHtml, address, uid);
+                        fitMapToMarkers();
+                        return;
+                    }
+                    var markerLat = parseFloat(data[0].lat);
+                    var markerLon = parseFloat(data[0].lon);
+                    console.log("Geocoded to " + markerLat + ", " + markerLon);
+                    addMarkerAtCoords(markerLat, markerLon, name, infoHtml, address, uid);
+                    fitMapToMarkers();
+                })
+                .catch(function(err) {
+                    console.error("Geocode error for address", address, err, "using default location");
+                    // Use default location on error
+                    addMarkerAtCoords(40.75, -73.45, name, infoHtml, address, uid);
+                    fitMapToMarkers();
+                });
+            }
+        }
+
+        function addPharmacyMarker(address, name, infoHtml, lat, lon) {
+            if (lat !== undefined && lat !== null && lon !== undefined && lon !== null &&
+                !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lon))) {
+                addReadOnlyMarkerAtCoords(parseFloat(lat), parseFloat(lon), name, infoHtml, address);
+                fitMapToMarkers();
+                return;
+            }
+
+            if (!address || address.trim().length === 0) {
+                return;
+            }
+
+            var url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+                encodeURIComponent(address);
+            fetch(url, {
+                headers: {
+                    "Accept-Language": "en"
+                }
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data || data.length === 0) {
+                    addReadOnlyMarkerAtCoords(40.75, -73.45, name, infoHtml, address);
+                    fitMapToMarkers();
+                    return;
+                }
+                addReadOnlyMarkerAtCoords(parseFloat(data[0].lat), parseFloat(data[0].lon), name, infoHtml, address);
+                fitMapToMarkers();
+            })
+            .catch(function() {
+                addReadOnlyMarkerAtCoords(40.75, -73.45, name, infoHtml, address);
+                fitMapToMarkers();
+            });
+        }
+
+        function addHospitalMarker(address, name, infoHtml, lat, lon) {
+            addPharmacyMarker(address, name, infoHtml, lat, lon);
+        }
+
+        // Fit map to show all markers
+        function fitMapToMarkers() {
+            if (markers.length === 0) {
+                return;
+            }
+            var group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.2));
+            console.log("Fitted map to " + markers.length + " markers");
+        }
+
+        // Expose functions to JavaFX
+        window.clearMarkers = clearMarkers;
+        window.addMarker = addMarker;
+        window.addPharmacyMarker = addPharmacyMarker;
+        window.addHospitalMarker = addHospitalMarker;
+        window.fitMapToMarkers = fitMapToMarkers;
+    </script>
+</body>
+</html>

@@ -15,23 +15,24 @@ public final class SceneRouter {
 
     public static void init(Stage primaryStage) {
         stage = primaryStage;
-
         stage.setWidth(1000);
         stage.setHeight(650);
-
-        stage.setMinWidth(1000);
-        stage.setMinHeight(650);
-
-        stage.setResizable(false);
+        stage.setMinWidth(600);
+        stage.setMinHeight(400);
+        stage.setResizable(true);
     }
 
     public static void go(String fxmlFileName, String title) {
 
         try {
+            // Preserve current window size (avoid preserving maximized/fullscreen to prevent JavaFX animation issues)
+            double currentWidth = stage.getWidth();
+            double currentHeight = stage.getHeight();
+
             String path = Objects.requireNonNull(SceneRouter.class.getResource(fxmlFileName)).toExternalForm();
             Parent root = FXMLLoader.load(Objects.requireNonNull(SceneRouter.class.getResource(fxmlFileName)));
 
-            Scene scene = new Scene(root, 1000, 650);
+            Scene scene = new Scene(root, currentWidth, currentHeight);
             scene.getStylesheets().add(Objects.requireNonNull(SceneRouter.class.getResource("app.css")).toExternalForm());
 
             stage.setTitle(title);

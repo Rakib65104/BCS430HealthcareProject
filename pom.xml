@@ -13,27 +13,29 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.12.1</junit.version>
     </properties>
-    <!-- Ikonli core -->
-    <dependency>
-        <groupId>org.kordamp.ikonli</groupId>
-        <artifactId>ikonli-core</artifactId>
-        <version>12.3.1</version>
-    </dependency>
 
-    <!-- Ikonli JavaFX support -->
-    <dependency>
-        <groupId>org.kordamp.ikonli</groupId>
-        <artifactId>ikonli-javafx</artifactId>
-        <version>12.3.1</version>
-    </dependency>
-
-    <!-- Material icons pack (safe default) -->
-    <dependency>
-        <groupId>org.kordamp.ikonli</groupId>
-        <artifactId>ikonli-material-pack</artifactId>
-        <version>12.3.1</version>
-    </dependency>
     <dependencies>
+        <!-- Ikonli core -->
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-core</artifactId>
+            <version>12.3.1</version>
+        </dependency>
+
+        <!-- Ikonli JavaFX support -->
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-javafx</artifactId>
+            <version>12.3.1</version>
+        </dependency>
+
+        <!-- Material icons pack (safe default) -->
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-material-pack</artifactId>
+            <version>12.3.1</version>
+        </dependency>
+
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
@@ -87,11 +89,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.kordamp.ikonli</groupId>
-            <artifactId>ikonli-javafx</artifactId>
-            <version>12.3.1</version>
-        </dependency>
-        <dependency>
             <groupId>org.kordamp.bootstrapfx</groupId>
             <artifactId>bootstrapfx-core</artifactId>
             <version>0.4.0</version>
@@ -119,6 +116,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.2.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${junit.version}</version>
@@ -141,28 +143,26 @@
                 <configuration>
                     <source>23</source>
                     <target>23</target>
+                    <!-- Use classpath instead of module-path for Firebase compatibility -->
+                    <compilerVersion>23</compilerVersion>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
-                <executions>
-                    <execution>
-                        <!-- Default configuration for running with: mvn clean javafx:run -->
-                        <id>default-cli</id>
-                        <configuration>
-                            <mainClass>rakib.bcs430healthcareproject/rakib.bcs430healthcareproject.HelloApplication
-                            </mainClass>
-                            <launcher>app</launcher>
-                            <jlinkZipName>app</jlinkZipName>
-                            <jlinkImageName>app</jlinkImageName>
-                            <noManPages>true</noManPages>
-                            <stripDebug>true</stripDebug>
-                            <noHeaderFiles>true</noHeaderFiles>
-                        </configuration>
-                    </execution>
-                </executions>
+                <configuration>
+                    <!-- Use classpath instead of module-path -->
+                    <mainClass>rakib.bcs430healthcareproject.Launcher</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>rakib.bcs430healthcareproject.Launcher</mainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>

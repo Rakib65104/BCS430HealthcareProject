@@ -1,5 +1,6 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -14,6 +15,21 @@ public class PatientSignupController {
     @FXML private TextField zipField;
     @FXML private Label errorLabel;
 
+    private FirebaseService firebaseService;
+
+    /**
+     * Initialize the controller.
+     * This method is called by JavaFX after the FXML is loaded.
+     */
+    @FXML
+    public void initialize() {
+        firebaseService = new FirebaseService();
+    }
+
+    /**
+     * Handles patient account creation.
+     * Validates input, then creates account in Firebase.
+     */
     @FXML
     private void onCreatePatientAccount() {
         String name = safe(nameField);
@@ -22,6 +38,7 @@ public class PatientSignupController {
         String confirm = confirmPasswordField.getText() == null ? "" : confirmPasswordField.getText();
         String zip = safe(zipField);
 
+        // Validate input
         if (name.isEmpty() || email.isEmpty() || pass.isEmpty() || confirm.isEmpty() || zip.isEmpty()) {
             showError("Please fill in all fields.");
             return;
@@ -43,12 +60,26 @@ public class PatientSignupController {
             return;
         }
 
-        // TODO: Connect Firebase:
-        // 1) Create user with email/pass
-        // 2) Save role=PATIENT + profile (name, zip)
-        // 3) Route to Patient Home
+        // Show loading status
+        showError("Creating your patient account...");
 
-        showError("Patient account validated (Firebase next).");
+        // Create patient account in Firebase
+        firebaseService.createPatient(email, pass, name, zip)
+                .thenAccept(uid -> {
+                    // Success: Run on JavaFX thread
+                    Platform.runLater(() -> {
+                        showSuccess("Account created successfully! UID: " + uid);
+                        // Route to Patient Dashboard
+                        SceneRouter.go("patient-dashboard-view.fxml", "Patient Dashboard");
+                    });
+                })
+                .exceptionally(throwable -> {
+                    // Failure: Run on JavaFX thread
+                    Platform.runLater(() -> {
+                        showError(throwable.getMessage());
+                    });
+                    return null;
+                });
     }
 
     @FXML
@@ -62,6 +93,14 @@ public class PatientSignupController {
 
     private void showError(String msg) {
         errorLabel.setText(msg);
+        errorLabel.setStyle("-fx-text-fill: #cc0000;");
+        errorLabel.setManaged(true);
+        errorLabel.setVisible(true);
+    }
+
+    private void showSuccess(String msg) {
+        errorLabel.setText(msg);
+        errorLabel.setStyle("-fx-text-fill: #00aa00;");
         errorLabel.setManaged(true);
         errorLabel.setVisible(true);
     }

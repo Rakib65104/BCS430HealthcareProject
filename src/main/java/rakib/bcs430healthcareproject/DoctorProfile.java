@@ -1,0 +1,385 @@
+package rakib.bcs430healthcareproject;
+
+import com.google.cloud.firestore.annotation.DocumentId;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Model class representing a doctor's profile data.
+ * Stored in Firestore under /doctors/{uid}
+ */
+public class DoctorProfile {
+
+    @DocumentId
+    private String uid;
+
+    private String name;
+    private String email;
+    private String role;
+
+    // Professional info
+    private String specialty;
+    private String clinicName;
+
+    // Location info
+    private String address;
+    private String city;
+    private String state;
+    private String zip;
+
+    // Practice info
+    private Boolean acceptingNewPatients;
+
+    // Contact & extended profile info
+    private String phone;
+    private String licenseNumber;
+    private String bio;
+    private String insuranceInfo;
+    private String hours; // legacy field
+
+    /**
+     * Weekly availability:
+     * key   = full day name, e.g. "Monday"
+     * value = one or more time ranges, e.g. "09:00 AM-12:00 PM, 02:00 PM-05:00 PM"
+     * blank or missing means unavailable
+     */
+    private Map<String, String> availability;
+
+    private String visitType;
+    private String notes;
+
+    // Security
+    private String passwordHash;
+    private String passwordSalt;
+
+    // Metadata
+    private Long createdAt;
+    private Long updatedAt;
+
+    /**
+     * Required no-arg constructor for Firestore.
+     */
+    public DoctorProfile() {
+        this.role = "DOCTOR";
+        this.acceptingNewPatients = false;
+        this.availability = new HashMap<>();
+        this.createdAt = System.currentTimeMillis();
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * Constructor used at signup without availability.
+     */
+    public DoctorProfile(String uid,
+                         String name,
+                         String email,
+                         String specialty,
+                         String clinicName,
+                         String address,
+                         String city,
+                         String state,
+                         String zip,
+                         Boolean acceptingNewPatients) {
+
+        this.uid = uid;
+        this.name = name;
+        this.email = email;
+        this.specialty = specialty;
+        this.clinicName = clinicName;
+        this.address = address;
+        this.city = city;
+        this.state = state;
+        this.zip = zip;
+        this.acceptingNewPatients = acceptingNewPatients;
+        this.role = "DOCTOR";
+        this.availability = new HashMap<>();
+        this.createdAt = System.currentTimeMillis();
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * Constructor used at signup with availability.
+     */
+    public DoctorProfile(String uid,
+                         String name,
+                         String email,
+                         String specialty,
+                         String clinicName,
+                         String address,
+                         String city,
+                         String state,
+                         String zip,
+                         Boolean acceptingNewPatients,
+                         Map<String, String> availability) {
+
+        this.uid = uid;
+        this.name = name;
+        this.email = email;
+        this.specialty = specialty;
+        this.clinicName = clinicName;
+        this.address = address;
+        this.city = city;
+        this.state = state;
+        this.zip = zip;
+        this.acceptingNewPatients = acceptingNewPatients;
+        this.role = "DOCTOR";
+        this.availability = availability != null ? new HashMap<>(availability) : new HashMap<>();
+        this.createdAt = System.currentTimeMillis();
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public String getUid() {
+        return uid;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+        touch();
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+        touch();
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+        touch();
+    }
+
+    public String getSpecialty() {
+        return specialty;
+    }
+
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
+        touch();
+    }
+
+    public String getClinicName() {
+        return clinicName;
+    }
+
+    public void setClinicName(String clinicName) {
+        this.clinicName = clinicName;
+        touch();
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+        touch();
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+        touch();
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+        touch();
+    }
+
+    public String getZip() {
+        return zip;
+    }
+
+    public void setZip(String zip) {
+        this.zip = zip;
+        touch();
+    }
+
+    public Boolean getAcceptingNewPatients() {
+        return acceptingNewPatients;
+    }
+
+    public void setAcceptingNewPatients(Boolean acceptingNewPatients) {
+        this.acceptingNewPatients = acceptingNewPatients;
+        touch();
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+        touch();
+    }
+
+    public String getLicenseNumber() {
+        return licenseNumber;
+    }
+
+    public void setLicenseNumber(String licenseNumber) {
+        this.licenseNumber = licenseNumber;
+        touch();
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+        touch();
+    }
+
+    public String getInsuranceInfo() {
+        return insuranceInfo;
+    }
+
+    public void setInsuranceInfo(String insuranceInfo) {
+        this.insuranceInfo = insuranceInfo;
+        touch();
+    }
+
+    public String getHours() {
+        return hours;
+    }
+
+    public void setHours(String hours) {
+        this.hours = hours;
+        touch();
+    }
+
+    public Map<String, String> getAvailability() {
+        if (availability == null) {
+            availability = new HashMap<>();
+        }
+        return availability;
+    }
+
+    public void setAvailability(Map<String, String> availability) {
+        this.availability = availability != null ? new HashMap<>(availability) : new HashMap<>();
+        touch();
+    }
+
+    public String getAvailabilityForDay(String dayName) {
+        return getAvailability().getOrDefault(dayName, "");
+    }
+
+    public boolean isAvailableOnDay(String dayName) {
+        String value = getAvailabilityForDay(dayName);
+        return value != null && !value.trim().isEmpty();
+    }
+
+    public String getVisitType() {
+        return visitType;
+    }
+
+    public void setVisitType(String visitType) {
+        this.visitType = visitType;
+        touch();
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+        touch();
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getPasswordSalt() {
+        return passwordSalt;
+    }
+
+    public void setPasswordSalt(String passwordSalt) {
+        this.passwordSalt = passwordSalt;
+    }
+
+    public Long getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Long createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Long getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Long updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    private void touch() {
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * Convert DoctorProfile to a Map for Firestore storage.
+     */
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("uid", uid);
+        result.put("name", name);
+        result.put("email", email);
+        result.put("role", role);
+
+        result.put("specialty", specialty);
+        result.put("clinicName", clinicName);
+        result.put("address", address);
+        result.put("city", city);
+        result.put("state", state);
+        result.put("zip", zip);
+
+        result.put("acceptingNewPatients", acceptingNewPatients);
+        result.put("phone", phone);
+        result.put("licenseNumber", licenseNumber);
+        result.put("bio", bio);
+        result.put("insuranceInfo", insuranceInfo);
+        result.put("hours", hours);
+        result.put("availability", getAvailability());
+        result.put("visitType", visitType);
+        result.put("notes", notes);
+
+        result.put("passwordHash", passwordHash);
+        result.put("passwordSalt", passwordSalt);
+
+        result.put("createdAt", createdAt);
+        result.put("updatedAt", updatedAt);
+
+        return result;
+    }
+}

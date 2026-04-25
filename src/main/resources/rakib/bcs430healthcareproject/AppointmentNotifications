@@ -1,0 +1,35 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db'); // your MySQL connection
+const { sendAppointmentEmail } = require('../notifications/emailService');
+
+// POST /appointments
+router.post('/', async (req, res) => {
+  const { patientId, doctorId, date, time, patientEmail } = req.body;
+
+  try {
+    // 1. Insert appointment into DB
+    const [result] = await db.execute(
+      'INSERT INTO appointments (patient_id, doctor_id, date, time, status) VALUES (?, ?, ?, ?, ?)',
+      [patientId, doctorId, date, time, 'PENDING']
+    );
+
+    const appointmentId = result.insertId;
+
+    // 2. Send notification email
+    await sendAppointmentEmail({
+      to: patientEmail,
+      subject: 'Appointment requested',
+      text: `Your appointment request for ${date} at ${time} has been received. Appointment ID: ${appointmentId}.`,
+      html: `<p>Your appointment request for <b>${date}</b> at <b>${time}</b> has been received.</p>
+             <p>Appointment ID: <b>${appointmentId}</b>.</p>`,
+    });
+
+    res.status(201).json({ success: true, appointmentId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to create appointment' });
+  }
+});
+
+module.exports = router;

@@ -1,137 +1,311 @@
+/* =========================================================
+   SHARED PAGE SHELL / TOP BAR / TABS
+   ========================================================= */
 
-/* ===== Global ===== */
-.root {
-    -fx-font-family: "Segoe UI", Arial, sans-serif;
-    -fx-background-color: #f0f7f6; /* light medical background */
+/* Main page background wrapper */
+.page-shell {
+    -fx-background-color: #f4f9f9;
 }
 
-/* ===== Card container ===== */
-.card {
+/* Top teal header row */
+.top-header {
+    -fx-background-color: linear-gradient(to right, #0f766e, #115e59);
+    -fx-padding: 18 24 18 24;
+    -fx-alignment: center-left;
+    -fx-spacing: 12;
+}
+
+.top-header-title {
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: 900;
+}
+
+.top-header-subtitle {
+    -fx-text-fill: #ccfbf1;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+}
+
+.top-header-status {
+    -fx-text-fill: #ccfbf1;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+/* Optional thin bar under header */
+.top-subbar {
+    -fx-background-color: #ecfeff;
+    -fx-padding: 8 24 8 24;
+    -fx-border-color: #d1e7e4;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* =========================================================
+   TOP NAV TABS / TASKBAR
+   ========================================================= */
+
+.top-tabs {
+    -fx-background-color: #f8fffe;
+    -fx-padding: 12 24 12 24;
+    -fx-spacing: 10;
+    -fx-border-color: #d1e7e4;
+    -fx-border-width: 0 0 1 0;
+}
+
+.tab-btn {
     -fx-background-color: white;
+    -fx-text-fill: #0f766e;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-border-color: #cfe9e5;
+    -fx-padding: 10 18 10 18;
+}
+
+.tab-btn:hover {
+    -fx-background-color: #ccfbf1;
+    -fx-border-color: #99f6e4;
+}
+
+.tab-btn-active {
+    -fx-background-color: linear-gradient(to right, #14b8a6, #0f766e);
+    -fx-text-fill: white;
+    -fx-border-color: transparent;
+}
+
+/* =========================================================
+   PAGE CONTENT WRAPPERS
+   ========================================================= */
+
+.page-content {
+    -fx-padding: 30;
+    -fx-spacing: 20;
+    -fx-background-color: transparent;
+}
+
+.page-intro {
+    -fx-background-color: linear-gradient(to right, #0f766e, #115e59);
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+    -fx-padding: 22;
+    -fx-spacing: 8;
+    -fx-effect: dropshadow(gaussian, rgba(15, 118, 110, 0.20), 18, 0.18, 0, 6);
+}
+
+.page-intro-title {
+    -fx-text-fill: white;
+    -fx-font-size: 24px;
+    -fx-font-weight: 900;
+}
+
+.page-intro-subtitle {
+    -fx-text-fill: #ccfbf1;
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+}
+
+/* =========================================================
+   SECTION / PANEL CARDS
+   ========================================================= */
+
+.panel-card {
+    -fx-background-color: rgba(255, 255, 255, 0.98);
     -fx-background-radius: 18;
     -fx-border-radius: 18;
     -fx-border-color: #d1e7e4;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 18, 0.15, 0, 8);
+    -fx-border-width: 1;
+    -fx-padding: 22;
+    -fx-spacing: 14;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.07), 18, 0.16, 0, 6);
 }
 
-/* ===== Typography ===== */
-.title {
-    -fx-font-size: 28px;
+.panel-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(20, 184, 166, 0.14), 20, 0.18, 0, 8);
+}
+
+.panel-title {
+    -fx-text-fill: #0f766e;
+    -fx-font-size: 17px;
     -fx-font-weight: 800;
-    -fx-text-fill: #0f766e; /* dark teal */
 }
 
-.subtitle {
-    -fx-font-size: 13px;
-    -fx-text-fill: #475569;
-}
-
-.muted {
+.panel-subtitle {
     -fx-text-fill: #64748b;
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
 }
 
-.label {
-    -fx-font-weight: 600;
-    -fx-text-fill: #0f172a;
-}
-
-/* ===== Inputs ===== */
-.text-field,
-.password-field {
-    -fx-background-color: #f8fafc;
-    -fx-background-radius: 12;
-    -fx-border-radius: 12;
-    -fx-border-color: #cbd5e1;
-    -fx-text-fill: #0f172a;
-    -fx-prompt-text-fill: #94a3b8;
-    -fx-padding: 10 12 10 12;
-}
-
-.text-field:focused,
-.password-field:focused {
-    -fx-border-color: #14b8a6; /* teal focus */
-    -fx-background-color: white;
-}
-
-/* ===== Buttons ===== */
-.button {
-    -fx-background-radius: 12;
-    -fx-border-radius: 12;
-    -fx-padding: 10 14 10 14;
-    -fx-font-weight: 700;
-    -fx-cursor: hand;
-}
-
-/* Primary medical action */
-.primary-btn {
-    -fx-background-color: #14b8a6; /* teal */
-    -fx-text-fill: white;
-}
-
-.primary-btn:hover {
-    -fx-background-color: #0d9488;
-}
-
-/* Secondary / back button */
-.ghost-btn {
-    -fx-background-color: #f1f5f9;
-    -fx-text-fill: #0f172a;
-    -fx-border-color: #cbd5e1;
-}
-
-.ghost-btn:hover {
-    -fx-background-color: #e2e8f0;
-}
-
-/* ===== Hyperlinks ===== */
-.hyperlink {
-    -fx-text-fill: #0ea5a4;
-    -fx-font-weight: 600;
-    -fx-border-color: transparent;
-    -fx-padding: 0;
-}
-
-.hyperlink:hover {
-    -fx-underline: true;
-}
-
-/* ===== Errors ===== */
-.error {
-    -fx-text-fill: #dc2626;
-    -fx-font-weight: 700;
-}
-
-/* ===== Role choice cards ===== */
-.choice-card {
-    -fx-background-color: #f8fafc;
+/* Small info display panel */
+.info-panel {
+    -fx-background-color: linear-gradient(to bottom right, #ffffff, #f8fffe);
     -fx-background-radius: 16;
     -fx-border-radius: 16;
     -fx-border-color: #d1e7e4;
     -fx-padding: 18;
+    -fx-spacing: 8;
 }
 
-.choice-title {
-    -fx-font-size: 18px;
-    -fx-font-weight: 800;
-    -fx-text-fill: #0f766e;
-}
+/* =========================================================
+   FOOTER ACTION BAR
+   ========================================================= */
 
-/* ===== ScrollPane ===== */
-.scroll-pane {
-    -fx-background-color: transparent;
-}
-
-.scroll-pane > .viewport {
-    -fx-background-color: transparent;
-}
-
-/* ===== CheckBox ===== */
-.check-box {
-    -fx-text-fill: #0f172a;
-    -fx-font-weight: 600;
-}
-
-/* ===== Optional subtle separators ===== */
-.separator *.line {
+.footer-bar {
+    -fx-background-color: rgba(255,255,255,0.96);
+    -fx-padding: 16 24 16 24;
+    -fx-alignment: center-right;
+    -fx-spacing: 10;
     -fx-border-color: #d1e7e4;
+    -fx-border-width: 1 0 0 0;
+}
+
+/* =========================================================
+   SPECIAL BUTTON STYLES
+   ========================================================= */
+
+.header-btn {
+    -fx-background-color: rgba(255,255,255,0.16);
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 8 14 8 14;
+    -fx-border-color: rgba(255,255,255,0.18);
+}
+
+.header-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.24);
+}
+
+.success-btn {
+    -fx-background-color: #16a34a;
+    -fx-text-fill: white;
+}
+
+.success-btn:hover {
+    -fx-background-color: #15803d;
+}
+
+.cancel-btn {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: white;
+}
+
+.cancel-btn:hover {
+    -fx-background-color: #dc2626;
+}
+
+/* =========================================================
+   FORM LAYOUT HELPERS
+   ========================================================= */
+
+.form-section {
+    -fx-spacing: 6;
+}
+
+.form-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #134e4a;
+}
+
+.helper-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: #64748b;
+}
+
+/* =========================================================
+   LOGIN / AUTH PAGES
+   ========================================================= */
+
+.auth-shell {
+    -fx-background-color: linear-gradient(to bottom right, #ecfdfb, #f8fafc);
+}
+
+.auth-card {
+    -fx-background-color: rgba(255,255,255,0.98);
+    -fx-background-radius: 22;
+    -fx-border-radius: 22;
+    -fx-border-color: #dbeafe;
+    -fx-border-width: 1;
+    -fx-padding: 28;
+    -fx-spacing: 14;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.10), 24, 0.18, 0, 10);
+}
+
+/* =========================================================
+   SCROLLPANE CLEANUP
+   ========================================================= */
+
+.clean-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.clean-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* =========================================================
+   FLOATING MESSAGE BUTTON
+   ========================================================= */
+
+.fab-message {
+    -fx-background-color: linear-gradient(to bottom right, #14b8a6, #0f766e);
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: 900;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-min-width: 58px;
+    -fx-min-height: 58px;
+    -fx-max-width: 58px;
+    -fx-max-height: 58px;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+    -fx-effect: dropshadow(gaussian, rgba(15, 118, 110, 0.35), 18, 0.22, 0, 6);
+}
+
+.fab-message:hover {
+    -fx-background-color: linear-gradient(to bottom right, #2dd4bf, #0f766e);
+    -fx-effect: dropshadow(gaussian, rgba(20, 184, 166, 0.45), 22, 0.24, 0, 8);
+}
+
+.fab-message:pressed {
+    -fx-scale-x: 0.97;
+    -fx-scale-y: 0.97;
+}
+
+/* =========================================================
+   FLOATING MESSAGE BUTTON - UNREAD STATE
+   ========================================================= */
+
+.fab-message-unread {
+    -fx-background-color: linear-gradient(to bottom right, #14b8a6, #0f766e);
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: 900;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-min-width: 58px;
+    -fx-min-height: 58px;
+    -fx-max-width: 58px;
+    -fx-max-height: 58px;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+    -fx-border-color: #ef4444;
+    -fx-border-width: 3;
+    -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.55), 22, 0.24, 0, 0);
+}
+
+.fab-message-unread:hover {
+    -fx-background-color: linear-gradient(to bottom right, #2dd4bf, #0f766e);
+    -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.65), 24, 0.28, 0, 0);
+}
+
+.fab-message-unread:pressed {
+    -fx-scale-x: 0.97;
+    -fx-scale-y: 0.97;
 }

@@ -44,6 +44,7 @@ public class FirebaseService {
     private static final String PRESCRIPTIONS_COLLECTION = "prescriptions";
     private static final String MESSAGES_COLLECTION = "messages";
     private static final String NOTIFICATIONS_COLLECTION = "notifications";
+    private static final String HOSPITAL_DEPARTMENTS_COLLECTION = "hospitalDepartments";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
@@ -2027,7 +2028,94 @@ public class FirebaseService {
 
         createNotification(notification);
     }
+    public CompletableFuture<String> addHospitalDepartment(HospitalDepartment department) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (department == null) {
+                    throw new RuntimeException("Department cannot be null.");
+                }
 
+                if (department.getHospitalUid() == null || department.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital ID is required.");
+                }
+
+                if (department.getName() == null || department.getName().isBlank()) {
+                    throw new RuntimeException("Department name is required.");
+                }
+
+                String departmentId = firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .document()
+                        .getId();
+
+                department.setDepartmentId(departmentId);
+
+                firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .document(departmentId)
+                        .set(department)
+                        .get();
+
+                return departmentId;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to add hospital department: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<List<HospitalDepartment>> getDepartmentsForHospital(String hospitalUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<HospitalDepartment> departments = new ArrayList<>();
+
+            try {
+                if (hospitalUid == null || hospitalUid.isBlank()) {
+                    return departments;
+                }
+
+                QuerySnapshot snapshot = firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .whereEqualTo("hospitalUid", hospitalUid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    HospitalDepartment department = doc.toObject(HospitalDepartment.class);
+
+                    if (department != null) {
+                        department.setDepartmentId(doc.getId());
+                        departments.add(department);
+                    }
+                }
+
+                departments.sort((left, right) -> {
+                    String leftName = left.getName() != null ? left.getName() : "";
+                    String rightName = right.getName() != null ? right.getName() : "";
+                    return leftName.compareToIgnoreCase(rightName);
+                });
+
+                return departments;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve hospital departments: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<Void> deleteHospitalDepartment(String departmentId) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (departmentId == null || departmentId.isBlank()) {
+                    throw new RuntimeException("Department ID is required.");
+                }
+
+                firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .document(departmentId)
+                        .delete()
+                        .get();
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to delete hospital department: " + e.getMessage(), e);
+            }
+        });
+    }
     /**
      * Handles Firebase Authentication exceptions and returns user-friendly error messages.
      */

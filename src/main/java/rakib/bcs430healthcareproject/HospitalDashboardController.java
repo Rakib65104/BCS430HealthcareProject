@@ -80,9 +80,7 @@ public class HospitalDashboardController {
         }
 
         setLabelText(appointmentsTodayLabel, String.valueOf(todayCount));
-
-        // You removed departments support, so keep this simple for now
-        setLabelText(departmentsLabel, "—");
+        setLabelText(departmentsLabel, "Manage");
     }
 
     private void loadPatientsPreview(List<PatientProfile> patients) {
@@ -233,7 +231,7 @@ public class HospitalDashboardController {
     private void loadEmptyState() {
         setLabelText(totalPatientsLabel, "0");
         setLabelText(appointmentsTodayLabel, "0");
-        setLabelText(departmentsLabel, "—");
+        setLabelText(departmentsLabel, "Manage");
 
         if (patientsListVBox != null) {
             patientsListVBox.getChildren().clear();
@@ -254,6 +252,11 @@ public class HospitalDashboardController {
     @FXML
     private void onSchedule() {
         SceneRouter.go("hospital-schedule-view.fxml", "Hospital Schedule");
+    }
+
+    @FXML
+    private void onDepartments() {
+        SceneRouter.go("hospital-departments-view.fxml", "Hospital Departments");
     }
 
     @FXML

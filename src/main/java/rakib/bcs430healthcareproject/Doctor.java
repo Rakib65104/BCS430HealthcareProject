@@ -3,37 +3,31 @@ package rakib.bcs430healthcareproject;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Model class representing a doctor for search results.
- * Simplified version of DoctorProfile for displaying in search results.
- */
 public class Doctor {
     private String uid;
     private String name;
     private String specialty;
     private String zip;
     private String clinicName;
+
+    private String hospitalUid;
+    private String hospitalName;
+    private String department;
+
     private String city;
     private String state;
     private Boolean acceptingNewPatients;
     private String address;
     private String phone;
-    private String email; // public contact address
+    private String email;
     private Double latitude;
     private Double longitude;
 
-    // additional profile details that may be loaded when viewing full profile
     private String licenseNumber;
     private String bio;
     private String insuranceInfo;
-    private String hours;    // legacy string representation of office hours
+    private String hours;
 
-    /**
-     * Weekly availability map:
-     * key   = full day name, e.g. "Monday"
-     * value = one or more time ranges, e.g. "09:00 AM-12:00 PM, 02:00 PM-05:00 PM"
-     * blank or missing means unavailable
-     */
     private Map<String, String> availability;
 
     private String visitType;
@@ -57,7 +51,6 @@ public class Doctor {
         this.availability = new HashMap<>();
     }
 
-    // Getters and Setters
     public String getUid() {
         return uid;
     }
@@ -96,6 +89,30 @@ public class Doctor {
 
     public void setClinicName(String clinicName) {
         this.clinicName = clinicName;
+    }
+
+    public String getHospitalUid() {
+        return hospitalUid;
+    }
+
+    public void setHospitalUid(String hospitalUid) {
+        this.hospitalUid = hospitalUid;
+    }
+
+    public String getHospitalName() {
+        return hospitalName;
+    }
+
+    public void setHospitalName(String hospitalName) {
+        this.hospitalName = hospitalName;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
     }
 
     public String getCity() {

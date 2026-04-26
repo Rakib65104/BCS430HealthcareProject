@@ -5,10 +5,6 @@ import com.google.cloud.firestore.annotation.DocumentId;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Model class representing a doctor's profile data.
- * Stored in Firestore under /doctors/{uid}
- */
 public class DoctorProfile {
 
     @DocumentId
@@ -18,48 +14,37 @@ public class DoctorProfile {
     private String email;
     private String role;
 
-    // Professional info
     private String specialty;
     private String clinicName;
 
-    // Location info
+    private String hospitalUid;
+    private String hospitalName;
+    private String department;
+
     private String address;
     private String city;
     private String state;
     private String zip;
 
-    // Practice info
     private Boolean acceptingNewPatients;
 
-    // Contact & extended profile info
     private String phone;
     private String licenseNumber;
     private String bio;
     private String insuranceInfo;
-    private String hours; // legacy field
+    private String hours;
 
-    /**
-     * Weekly availability:
-     * key   = full day name, e.g. "Monday"
-     * value = one or more time ranges, e.g. "09:00 AM-12:00 PM, 02:00 PM-05:00 PM"
-     * blank or missing means unavailable
-     */
     private Map<String, String> availability;
 
     private String visitType;
     private String notes;
 
-    // Security
     private String passwordHash;
     private String passwordSalt;
 
-    // Metadata
     private Long createdAt;
     private Long updatedAt;
 
-    /**
-     * Required no-arg constructor for Firestore.
-     */
     public DoctorProfile() {
         this.role = "DOCTOR";
         this.acceptingNewPatients = false;
@@ -68,9 +53,6 @@ public class DoctorProfile {
         this.updatedAt = System.currentTimeMillis();
     }
 
-    /**
-     * Constructor used at signup without availability.
-     */
     public DoctorProfile(String uid,
                          String name,
                          String email,
@@ -98,9 +80,6 @@ public class DoctorProfile {
         this.updatedAt = System.currentTimeMillis();
     }
 
-    /**
-     * Constructor used at signup with availability.
-     */
     public DoctorProfile(String uid,
                          String name,
                          String email,
@@ -113,20 +92,8 @@ public class DoctorProfile {
                          Boolean acceptingNewPatients,
                          Map<String, String> availability) {
 
-        this.uid = uid;
-        this.name = name;
-        this.email = email;
-        this.specialty = specialty;
-        this.clinicName = clinicName;
-        this.address = address;
-        this.city = city;
-        this.state = state;
-        this.zip = zip;
-        this.acceptingNewPatients = acceptingNewPatients;
-        this.role = "DOCTOR";
+        this(uid, name, email, specialty, clinicName, address, city, state, zip, acceptingNewPatients);
         this.availability = availability != null ? new HashMap<>(availability) : new HashMap<>();
-        this.createdAt = System.currentTimeMillis();
-        this.updatedAt = System.currentTimeMillis();
     }
 
     public String getUid() {
@@ -179,6 +146,33 @@ public class DoctorProfile {
 
     public void setClinicName(String clinicName) {
         this.clinicName = clinicName;
+        touch();
+    }
+
+    public String getHospitalUid() {
+        return hospitalUid;
+    }
+
+    public void setHospitalUid(String hospitalUid) {
+        this.hospitalUid = hospitalUid;
+        touch();
+    }
+
+    public String getHospitalName() {
+        return hospitalName;
+    }
+
+    public void setHospitalName(String hospitalName) {
+        this.hospitalName = hospitalName;
+        touch();
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
         touch();
     }
 
@@ -347,11 +341,9 @@ public class DoctorProfile {
         this.updatedAt = System.currentTimeMillis();
     }
 
-    /**
-     * Convert DoctorProfile to a Map for Firestore storage.
-     */
     public Map<String, Object> toMap() {
         Map<String, Object> result = new HashMap<>();
+
         result.put("uid", uid);
         result.put("name", name);
         result.put("email", email);
@@ -359,6 +351,11 @@ public class DoctorProfile {
 
         result.put("specialty", specialty);
         result.put("clinicName", clinicName);
+
+        result.put("hospitalUid", hospitalUid);
+        result.put("hospitalName", hospitalName);
+        result.put("department", department);
+
         result.put("address", address);
         result.put("city", city);
         result.put("state", state);

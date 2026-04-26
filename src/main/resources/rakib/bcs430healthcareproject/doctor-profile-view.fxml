@@ -11,7 +11,6 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Priority?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 <?import org.controlsfx.control.CheckComboBox?>
@@ -22,7 +21,6 @@
             stylesheets="@app.css"
             styleClass="root page-shell">
 
-    <!-- Top Header -->
     <top>
         <VBox>
             <HBox styleClass="top-header">
@@ -51,7 +49,6 @@
         </VBox>
     </top>
 
-    <!-- Main Content -->
     <center>
         <ScrollPane fitToWidth="true"
                     hbarPolicy="NEVER"
@@ -59,16 +56,14 @@
             <content>
                 <VBox styleClass="page-content">
 
-                    <!-- Page Intro -->
                     <VBox styleClass="page-intro">
                         <Label text="Doctor Profile"
                                styleClass="page-intro-title" />
-                        <Label text="Manage professional details, clinic information, office hours, and appointment preferences."
+                        <Label text="Manage professional details, hospital assignment, department, office hours, and appointment preferences."
                                wrapText="true"
                                styleClass="page-intro-subtitle" />
                     </VBox>
 
-                    <!-- Basic Information -->
                     <VBox styleClass="panel-card">
                         <Label text="Basic Information"
                                styleClass="panel-title" />
@@ -93,6 +88,24 @@
                             </VBox>
                         </HBox>
 
+                        <HBox spacing="20">
+                            <VBox styleClass="form-section" HBox.hgrow="ALWAYS">
+                                <Label text="Associated Hospital"
+                                       styleClass="form-label" />
+                                <ComboBox fx:id="hospitalComboBox"
+                                          promptText="Select Hospital"
+                                          maxWidth="Infinity" />
+                            </VBox>
+
+                            <VBox styleClass="form-section" HBox.hgrow="ALWAYS">
+                                <Label text="Hospital Department"
+                                       styleClass="form-label" />
+                                <ComboBox fx:id="departmentComboBox"
+                                          promptText="Select Department"
+                                          maxWidth="Infinity" />
+                            </VBox>
+                        </HBox>
+
                         <VBox styleClass="form-section">
                             <Label text="Bio"
                                    styleClass="form-label" />
@@ -103,7 +116,6 @@
                         </VBox>
                     </VBox>
 
-                    <!-- Clinic / Location -->
                     <VBox styleClass="panel-card">
                         <Label text="Clinic / Location"
                                styleClass="panel-title" />
@@ -141,7 +153,6 @@
                         </HBox>
                     </VBox>
 
-                    <!-- Office Details -->
                     <VBox styleClass="panel-card">
                         <Label text="Office Details"
                                styleClass="panel-title" />
@@ -205,7 +216,6 @@
                                 <ComboBox fx:id="sundayField" GridPane.rowIndex="6" GridPane.columnIndex="1" maxWidth="Infinity" />
                             </GridPane>
 
-                            <!-- legacy area kept hidden unless needed -->
                             <TextArea fx:id="hoursArea"
                                       promptText="Mon-Fri 9am-5pm&#10;Sat 9am-1pm..."
                                       wrapText="true"
@@ -215,7 +225,6 @@
                         </VBox>
                     </VBox>
 
-                    <!-- Appointment Preferences -->
                     <VBox styleClass="panel-card">
                         <Label text="Appointment Preferences"
                                styleClass="panel-title" />
@@ -244,7 +253,6 @@
         </ScrollPane>
     </center>
 
-    <!-- Bottom Buttons -->
     <bottom>
         <HBox styleClass="footer-bar">
             <Button fx:id="editButton"

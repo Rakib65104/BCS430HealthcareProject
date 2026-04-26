@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="rakib.bcs430healthcareproject.HospitalDepartmentsController"
+            stylesheets="@app.css"
+            styleClass="root"
+            prefWidth="1000"
+            prefHeight="650">
+
+    <top>
+        <VBox spacing="0">
+            <HBox style="-fx-background-color: #0F766E; -fx-padding: 16 24; -fx-alignment: center-left; -fx-spacing: 18;">
+                <Label text="HealthConnect"
+                       style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;" />
+
+                <Region HBox.hgrow="ALWAYS" />
+
+                <Button text="Back"
+                        onAction="#onBack"
+                        style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 6 14;" />
+            </HBox>
+
+            <HBox style="-fx-background-color: #134E4A; -fx-padding: 18 24;">
+                <VBox spacing="4">
+                    <Label text="Hospital Departments"
+                           style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;" />
+                    <Label text="View hospital specialties and assigned doctors"
+                           style="-fx-text-fill: #CCFBF1; -fx-font-size: 13;" />
+                </VBox>
+
+                <Region HBox.hgrow="ALWAYS" />
+
+                <Button text="Refresh"
+                        onAction="#loadDepartments"
+                        style="-fx-background-color: #14B8A6; -fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 7 16;" />
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true"
+                    style="-fx-background-color: transparent; -fx-border-color: transparent;">
+            <content>
+                <VBox fx:id="departmentsListBox"
+                      spacing="14"
+                      style="-fx-padding: 22; -fx-background-color: #F8FAFC;">
+                    <padding>
+                        <Insets top="22" right="22" bottom="22" left="22"/>
+                    </padding>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+</BorderPane>

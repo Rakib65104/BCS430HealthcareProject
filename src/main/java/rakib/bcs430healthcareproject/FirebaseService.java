@@ -752,9 +752,9 @@ public class FirebaseService {
 
                 if (doctors.isEmpty()) {
                     Doctor testDoctor = new Doctor();
-                    testDoctor.setUid("test123");
-                    testDoctor.setName("Dr. Test");
-                    testDoctor.setSpecialty("General Medicine");
+                    testDoctor.setHospitalUid("");
+                    testDoctor.setHospitalName("");
+                    testDoctor.setDepartment("General Medicine");
                     testDoctor.setZip("10001");
                     testDoctor.setClinicName("Test Clinic");
                     testDoctor.setCity("New York");
@@ -796,31 +796,41 @@ public class FirebaseService {
 
     private Doctor mapDoctorDocument(DocumentSnapshot doc) {
         Doctor doctor = new Doctor();
+
         doctor.setUid(doc.getId());
         doctor.setName(doc.getString("name"));
         doctor.setEmail(doc.getString("email"));
         doctor.setSpecialty(doc.getString("specialty"));
         doctor.setZip(doc.getString("zip"));
         doctor.setClinicName(doc.getString("clinicName"));
+
+        doctor.setHospitalUid(doc.getString("hospitalUid"));
+        doctor.setHospitalName(doc.getString("hospitalName"));
+        doctor.setDepartment(doc.getString("department"));
+
         doctor.setCity(doc.getString("city"));
         doctor.setState(doc.getString("state"));
         doctor.setAddress(doc.getString("address"));
         doctor.setPhone(doc.getString("phone"));
         doctor.setAcceptingNewPatients(doc.getBoolean("acceptingNewPatients"));
+
         doctor.setHours(doc.getString("hours"));
         doctor.setInsuranceInfo(doc.getString("insuranceInfo"));
         doctor.setBio(doc.getString("bio"));
+        doctor.setLicenseNumber(doc.getString("licenseNumber"));
         doctor.setVisitType(doc.getString("visitType"));
         doctor.setNotes(doc.getString("notes"));
 
         Object availabilityObj = doc.get("availability");
         if (availabilityObj instanceof Map<?, ?> rawMap) {
             Map<String, String> availability = new HashMap<>();
+
             for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
                 if (entry.getKey() != null && entry.getValue() != null) {
                     availability.put(entry.getKey().toString(), entry.getValue().toString());
                 }
             }
+
             doctor.setAvailability(availability);
         }
 

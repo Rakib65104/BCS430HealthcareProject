@@ -49,16 +49,19 @@ public class HospitalScheduleController {
     private void loadAppointmentsForDate(LocalDate date) {
         try {
             HospitalProfile hospital = userContext.getHospitalProfile();
+
             if (hospital == null) {
                 showEmpty("No hospital is currently loaded.");
                 return;
             }
 
-            List<Appointment> allAppointments = firebaseService.getAppointmentsForHospital(hospital.getUid()).get();
+            List<Doctor> hospitalDoctors = getDoctorsForHospital(hospital.getUid());
+            List<Appointment> allAppointments = getAppointmentsForHospitalDoctors(hospitalDoctors);
+
             List<Appointment> filtered = new ArrayList<>();
 
             for (Appointment appointment : allAppointments) {
-                if (appointment != null && isSameDate(appointment, date)) {
+                if (appointment != null && isSameDate(appointment, date) && !isCancelled(appointment)) {
                     filtered.add(appointment);
                 }
             }
@@ -71,6 +74,46 @@ public class HospitalScheduleController {
             e.printStackTrace();
             showEmpty("Unable to load appointments.");
         }
+    }
+
+    private List<Doctor> getDoctorsForHospital(String hospitalUid) throws Exception {
+        List<Doctor> allDoctors = firebaseService.getAllDoctors().get();
+        List<Doctor> hospitalDoctors = new ArrayList<>();
+
+        if (allDoctors == null) return hospitalDoctors;
+
+        for (Doctor doctor : allDoctors) {
+            if (doctor != null
+                    && doctor.getHospitalUid() != null
+                    && doctor.getHospitalUid().equals(hospitalUid)) {
+                hospitalDoctors.add(doctor);
+            }
+        }
+
+        return hospitalDoctors;
+    }
+
+    private List<Appointment> getAppointmentsForHospitalDoctors(List<Doctor> hospitalDoctors) throws Exception {
+        List<Appointment> appointments = new ArrayList<>();
+
+        if (hospitalDoctors == null) return appointments;
+
+        for (Doctor doctor : hospitalDoctors) {
+            if (doctor == null || doctor.getUid() == null) continue;
+
+            List<Appointment> doctorAppointments = firebaseService.getDoctorAppointments(doctor.getUid()).get();
+
+            if (doctorAppointments != null) {
+                appointments.addAll(doctorAppointments);
+            }
+        }
+
+        appointments.sort((a, b) -> Long.compare(
+                a.getAppointmentDateTime() != null ? a.getAppointmentDateTime() : Long.MAX_VALUE,
+                b.getAppointmentDateTime() != null ? b.getAppointmentDateTime() : Long.MAX_VALUE
+        ));
+
+        return appointments;
     }
 
     private void renderAppointments(List<Appointment> appointments) {
@@ -145,6 +188,10 @@ public class HospitalScheduleController {
         }
     }
 
+    private boolean isCancelled(Appointment appointment) {
+        return appointment.getStatus() != null && appointment.getStatus().equalsIgnoreCase("CANCELLED");
+    }
+
     private String formatTime(Appointment appointment) {
         try {
             return Instant.ofEpochMilli(appointment.getAppointmentDateTime())
@@ -155,25 +202,10 @@ public class HospitalScheduleController {
         }
     }
 
-    @FXML
-    private void onDashboard() {
-        SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard");
-    }
-
-    @FXML
-    private void onPatients() {
-        SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients");
-    }
-
-    @FXML
-    private void onSchedule() {
-        // current page
-    }
-
-    @FXML
-    private void onProfile() {
-        SceneRouter.go("hospital-profile-view.fxml", "Hospital Profile");
-    }
+    @FXML private void onDashboard() { SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard"); }
+    @FXML private void onPatients() { SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients"); }
+    @FXML private void onSchedule() {}
+    @FXML private void onProfile() { SceneRouter.go("hospital-profile-view.fxml", "Hospital Profile"); }
 
     @FXML
     private void onLogout() {

@@ -1,5 +1,6 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import org.controlsfx.control.CheckComboBox;
@@ -22,6 +23,9 @@ public class DoctorProfileController {
     @FXML private TextField licenseField;
     @FXML private TextArea bioArea;
 
+    @FXML private ComboBox<String> hospitalComboBox;
+    @FXML private ComboBox<String> departmentComboBox;
+
     @FXML private TextField clinicNameField;
     @FXML private TextField addressField;
     @FXML private TextField cityField;
@@ -34,7 +38,6 @@ public class DoctorProfileController {
     @FXML private CheckBox acceptingNewPatientsCheck;
     @FXML private CheckComboBox<String> insuranceCheckComboBox;
 
-    // weekly availability fields
     @FXML private ComboBox<String> mondayField;
     @FXML private ComboBox<String> tuesdayField;
     @FXML private ComboBox<String> wednesdayField;
@@ -43,7 +46,6 @@ public class DoctorProfileController {
     @FXML private ComboBox<String> saturdayField;
     @FXML private ComboBox<String> sundayField;
 
-    // legacy freeform area kept for backward compatibility
     @FXML private TextArea hoursArea;
 
     @FXML private ComboBox<String> visitTypeComboBox;
@@ -56,6 +58,22 @@ public class DoctorProfileController {
     private DoctorProfileSnapshot original;
     private boolean viewedByPatient = false;
 
+    private final Map<String, String> hospitalNameToUidMap = new HashMap<>();
+
+    private final List<String> hospitalDepartments = Arrays.asList(
+            "Emergency",
+            "Cardiology",
+            "Dermatology",
+            "Pediatrics",
+            "Orthopedics",
+            "Radiology",
+            "Neurology",
+            "Pharmacy",
+            "Laboratory",
+            "General Medicine",
+            "Surgery"
+    );
+
     @FXML
     public void initialize() {
         visitTypeComboBox.getItems().setAll(
@@ -63,12 +81,17 @@ public class DoctorProfileController {
                 "Telehealth",
                 "In-Person + Telehealth"
         );
+
         insuranceCheckComboBox.getItems().setAll(InsuranceSupport.commonInsuranceProviders());
 
         setupAvailabilityDropdowns();
+        setupHospitalDepartmentDropdowns();
+        loadHospitalsFromFirebase();
+
         setEditing(false);
 
         Doctor selected = UserContext.getInstance().getSelectedDoctor();
+
         if (selected != null && UserContext.getInstance().isPatient()) {
             viewedByPatient = true;
             populateFromDoctor(selected);
@@ -84,11 +107,13 @@ public class DoctorProfileController {
             setEditing(false);
         } else if (UserContext.getInstance().isDoctor()) {
             DoctorProfile dp = UserContext.getInstance().getDoctorProfile();
+
             if (dp != null) {
                 populateFromDoctorProfile(dp);
             } else {
                 loadMockData();
             }
+
             original = snapshot();
         } else {
             loadMockData();
@@ -96,11 +121,52 @@ public class DoctorProfileController {
         }
     }
 
-    /**
-     * Setup availability dropdowns with common time slots and "Closed" option
-     */
+    private void setupHospitalDepartmentDropdowns() {
+        departmentComboBox.getItems().setAll(hospitalDepartments);
+    }
+
+    private void loadHospitalsFromFirebase() {
+        FirebaseService service = new FirebaseService();
+
+        service.getAllHospitals()
+                .thenAccept(hospitals -> Platform.runLater(() -> {
+                    String currentSelection = hospitalComboBox.getValue();
+
+                    hospitalComboBox.getItems().clear();
+                    hospitalNameToUidMap.clear();
+
+                    if (hospitals == null || hospitals.isEmpty()) {
+                        hospitalComboBox.setPromptText("No hospitals available");
+                        return;
+                    }
+
+                    for (HospitalProfile hospital : hospitals) {
+                        if (hospital == null) {
+                            continue;
+                        }
+
+                        String hospitalName = hospital.getHospitalName();
+                        String hospitalUid = hospital.getUid();
+
+                        if (hospitalName != null && !hospitalName.isBlank()
+                                && hospitalUid != null && !hospitalUid.isBlank()) {
+                            hospitalComboBox.getItems().add(hospitalName);
+                            hospitalNameToUidMap.put(hospitalName, hospitalUid);
+                        }
+                    }
+
+                    if (currentSelection != null && hospitalComboBox.getItems().contains(currentSelection)) {
+                        hospitalComboBox.setValue(currentSelection);
+                    }
+                }))
+                .exceptionally(ex -> {
+                    Platform.runLater(() -> showStatus("Could not load hospitals.", true));
+                    return null;
+                });
+    }
+
     private void setupAvailabilityDropdowns() {
-        java.util.List<String> timeSlots = java.util.Arrays.asList(
+        List<String> timeSlots = Arrays.asList(
                 "Closed",
                 "8:00 AM - 5:00 PM",
                 "8:30 AM - 5:30 PM",
@@ -135,6 +201,9 @@ public class DoctorProfileController {
         licenseField.setText(doctor.getLicenseNumber());
         bioArea.setText(doctor.getBio());
 
+        hospitalComboBox.setValue(doctor.getHospitalName());
+        departmentComboBox.setValue(doctor.getDepartment());
+
         clinicNameField.setText(doctor.getClinicName());
         addressField.setText(doctor.getAddress());
         cityField.setText(doctor.getCity());
@@ -156,12 +225,13 @@ public class DoctorProfileController {
     }
 
     private void populateFromDoctorProfile(DoctorProfile profile) {
-        System.out.println("Bio loaded: '" + profile.getBio() + "'");
-
         nameField.setText(profile.getName());
         specialtyField.setText(profile.getSpecialty());
         licenseField.setText(profile.getLicenseNumber());
         bioArea.setText(profile.getBio());
+
+        hospitalComboBox.setValue(profile.getHospitalName());
+        departmentComboBox.setValue(profile.getDepartment());
 
         clinicNameField.setText(profile.getClinicName());
         addressField.setText(profile.getAddress());
@@ -201,6 +271,7 @@ public class DoctorProfileController {
         }
 
         String value = availability.get(day);
+
         if (value == null || value.trim().isEmpty()) {
             return "Closed";
         }
@@ -220,6 +291,8 @@ public class DoctorProfileController {
         publicEmailField.setText("office@tealcare.com");
         acceptingNewPatientsCheck.setSelected(true);
         applyInsuranceSelection("Aetna, UnitedHealthcare");
+
+        departmentComboBox.setValue("General Medicine");
 
         mondayField.setValue("9:00 AM - 5:00 PM");
         tuesdayField.setValue("9:00 AM - 5:00 PM");
@@ -303,10 +376,17 @@ public class DoctorProfileController {
             tempProfile.setUid(ctx.getUid());
         }
 
+        String selectedHospitalName = hospitalComboBox.getValue();
+        String selectedHospitalUid = hospitalNameToUidMap.get(selectedHospitalName);
+
         tempProfile.setName(text(nameField));
         tempProfile.setSpecialty(text(specialtyField));
         tempProfile.setLicenseNumber(text(licenseField));
         tempProfile.setBio(text(bioArea));
+
+        tempProfile.setHospitalName(selectedHospitalName);
+        tempProfile.setHospitalUid(selectedHospitalUid);
+        tempProfile.setDepartment(departmentComboBox.getValue());
 
         tempProfile.setClinicName(text(clinicNameField));
         tempProfile.setAddress(text(addressField));
@@ -339,14 +419,14 @@ public class DoctorProfileController {
         FirebaseService service = new FirebaseService();
 
         service.updateDoctorProfile(profile.getUid(), profile)
-                .thenRun(() -> javafx.application.Platform.runLater(() -> {
+                .thenRun(() -> Platform.runLater(() -> {
                     ctx.updateDoctorProfile(profile);
                     setEditing(false);
                     original = snapshot();
                     showStatus("Profile saved successfully ✅", false);
                 }))
                 .exceptionally(ex -> {
-                    javafx.application.Platform.runLater(() ->
+                    Platform.runLater(() ->
                             showStatus("Failed to save profile: " + cleanErrorMessage(ex), true)
                     );
                     return null;
@@ -399,6 +479,9 @@ public class DoctorProfileController {
         licenseField.setDisable(disabled);
         bioArea.setDisable(disabled);
 
+        hospitalComboBox.setDisable(disabled);
+        departmentComboBox.setDisable(disabled);
+
         clinicNameField.setDisable(disabled);
         addressField.setDisable(disabled);
         cityField.setDisable(disabled);
@@ -447,13 +530,28 @@ public class DoctorProfileController {
 
     private DoctorProfileSnapshot snapshot() {
         return new DoctorProfileSnapshot(
-                text(nameField), text(specialtyField), text(licenseField), text(bioArea),
-                text(clinicNameField), text(addressField), text(cityField), text(stateField), text(zipField),
-                text(phoneField), text(publicEmailField),
+                text(nameField),
+                text(specialtyField),
+                text(licenseField),
+                text(bioArea),
+                hospitalComboBox.getValue(),
+                departmentComboBox.getValue(),
+                text(clinicNameField),
+                text(addressField),
+                text(cityField),
+                text(stateField),
+                text(zipField),
+                text(phoneField),
+                text(publicEmailField),
                 acceptingNewPatientsCheck.isSelected(),
                 selectedInsuranceInfo(),
-                text(mondayField), text(tuesdayField), text(wednesdayField),
-                text(thursdayField), text(fridayField), text(saturdayField), text(sundayField),
+                text(mondayField),
+                text(tuesdayField),
+                text(wednesdayField),
+                text(thursdayField),
+                text(fridayField),
+                text(saturdayField),
+                text(sundayField),
                 text(hoursArea),
                 visitTypeComboBox.getValue(),
                 text(notesArea)
@@ -465,6 +563,9 @@ public class DoctorProfileController {
         specialtyField.setText(s.specialty);
         licenseField.setText(s.license);
         bioArea.setText(s.bio);
+
+        hospitalComboBox.setValue(s.hospitalName);
+        departmentComboBox.setValue(s.department);
 
         clinicNameField.setText(s.clinicName);
         addressField.setText(s.address);
@@ -510,11 +611,13 @@ public class DoctorProfileController {
         }
 
         Throwable cause = e;
+
         while (cause.getCause() != null) {
             cause = cause.getCause();
         }
 
         String message = cause.getMessage();
+
         if (message == null || message.isBlank()) {
             return "Unknown error.";
         }
@@ -526,6 +629,7 @@ public class DoctorProfileController {
         insuranceCheckComboBox.getCheckModel().clearChecks();
 
         List<String> selectedInsurances = parseInsuranceInfo(insuranceInfo);
+
         for (String insurance : selectedInsurances) {
             if (insuranceCheckComboBox.getItems().contains(insurance)) {
                 insuranceCheckComboBox.getCheckModel().check(insurance);
@@ -554,6 +658,7 @@ public class DoctorProfileController {
 
     private static class DoctorProfileSnapshot {
         final String name, specialty, license, bio;
+        final String hospitalName, department;
         final String clinicName, address, city, state, zip;
         final String phone, publicEmail;
         final boolean acceptingNewPatients;
@@ -562,19 +667,37 @@ public class DoctorProfileController {
         final String hours;
         final String visitType, notes;
 
-        DoctorProfileSnapshot(String name, String specialty, String license, String bio,
-                              String clinicName, String address, String city, String state, String zip,
-                              String phone, String publicEmail,
+        DoctorProfileSnapshot(String name,
+                              String specialty,
+                              String license,
+                              String bio,
+                              String hospitalName,
+                              String department,
+                              String clinicName,
+                              String address,
+                              String city,
+                              String state,
+                              String zip,
+                              String phone,
+                              String publicEmail,
                               boolean acceptingNewPatients,
                               String insurance,
-                              String monday, String tuesday, String wednesday, String thursday,
-                              String friday, String saturday, String sunday,
+                              String monday,
+                              String tuesday,
+                              String wednesday,
+                              String thursday,
+                              String friday,
+                              String saturday,
+                              String sunday,
                               String hours,
-                              String visitType, String notes) {
+                              String visitType,
+                              String notes) {
             this.name = name;
             this.specialty = specialty;
             this.license = license;
             this.bio = bio;
+            this.hospitalName = hospitalName;
+            this.department = department;
             this.clinicName = clinicName;
             this.address = address;
             this.city = city;

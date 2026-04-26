@@ -2,6 +2,7 @@ package rakib.bcs430healthcareproject;
 
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -27,87 +28,22 @@ public class HospitalPatientsController {
     }
 
     private void loadPatients() {
-        try {
-            HospitalProfile hospital = userContext.getHospitalProfile();
+        HospitalProfile hospital = userContext.getHospitalProfile();
 
-            if (hospital == null) {
-                showEmpty("No hospital is currently loaded.");
-                return;
-            }
-
-            List<Doctor> hospitalDoctors = getDoctorsForHospital(hospital.getUid());
-            List<Appointment> hospitalAppointments = getAppointmentsForHospitalDoctors(hospitalDoctors);
-            allPatients = getPatientsFromAppointments(hospitalAppointments);
-
-            renderPatients(allPatients);
-
-        } catch (Exception e) {
-            System.err.println("Failed to load hospital patients: " + e.getMessage());
-            e.printStackTrace();
-            showEmpty("Unable to load patients.");
-        }
-    }
-
-    private List<Doctor> getDoctorsForHospital(String hospitalUid) throws Exception {
-        List<Doctor> allDoctors = firebaseService.getAllDoctors().get();
-        List<Doctor> hospitalDoctors = new ArrayList<>();
-
-        if (allDoctors == null) return hospitalDoctors;
-
-        for (Doctor doctor : allDoctors) {
-            if (doctor != null
-                    && doctor.getHospitalUid() != null
-                    && doctor.getHospitalUid().equals(hospitalUid)) {
-                hospitalDoctors.add(doctor);
-            }
+        if (hospital == null) {
+            showEmpty("No hospital is currently loaded.");
+            return;
         }
 
-        return hospitalDoctors;
-    }
-
-    private List<Appointment> getAppointmentsForHospitalDoctors(List<Doctor> hospitalDoctors) throws Exception {
-        List<Appointment> appointments = new ArrayList<>();
-
-        if (hospitalDoctors == null) return appointments;
-
-        for (Doctor doctor : hospitalDoctors) {
-            if (doctor == null || doctor.getUid() == null) continue;
-
-            List<Appointment> doctorAppointments = firebaseService.getDoctorAppointments(doctor.getUid()).get();
-
-            if (doctorAppointments != null) {
-                appointments.addAll(doctorAppointments);
-            }
-        }
-
-        return appointments;
-    }
-
-    private List<PatientProfile> getPatientsFromAppointments(List<Appointment> appointments) {
-        Map<String, PatientProfile> uniquePatients = new HashMap<>();
-
-        if (appointments == null) return new ArrayList<>();
-
-        for (Appointment appointment : appointments) {
-            if (appointment == null || appointment.getPatientUid() == null) continue;
-
-            if (uniquePatients.containsKey(appointment.getPatientUid())) {
-                continue;
-            }
-
-            try {
-                PatientProfile patient = firebaseService.getPatientProfile(appointment.getPatientUid()).get();
-
-                if (patient != null) {
-                    uniquePatients.put(appointment.getPatientUid(), patient);
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        List<PatientProfile> patients = new ArrayList<>(uniquePatients.values());
-        patients.sort((a, b) -> valueOrDefault(a.getName(), "").compareToIgnoreCase(valueOrDefault(b.getName(), "")));
-        return patients;
+        firebaseService.getPatientsForHospital(hospital.getUid())
+                .thenAccept(patients -> Platform.runLater(() -> {
+                    allPatients = patients == null ? new ArrayList<>() : patients;
+                    renderPatients(allPatients);
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showEmpty("Unable to load patients."));
+                    return null;
+                });
     }
 
     private void renderPatients(List<PatientProfile> patients) {
@@ -154,9 +90,11 @@ public class HospitalPatientsController {
 
         Button viewButton = new Button("View Profile");
         viewButton.setStyle("-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 8;");
+        viewButton.setOnAction(event -> openPatientProfile(patient));
 
         Button historyButton = new Button("Medical History");
         historyButton.setStyle("-fx-background-color: #E2E8F0; -fx-text-fill: #134E4A; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 8;");
+        historyButton.setOnAction(event -> openPatientHistory(patient));
 
         actions.getChildren().addAll(viewButton, historyButton);
 
@@ -228,5 +166,17 @@ public class HospitalPatientsController {
 
     private String safeGetGender(PatientProfile patient) {
         try { return patient.getGender(); } catch (Exception e) { return ""; }
+    }
+
+    private void openPatientProfile(PatientProfile patient) {
+        userContext.setSelectedPatientUid(patient.getUid());
+        userContext.setSelectedPatientProfile(patient);
+        SceneRouter.go("patient-profile-view.fxml", "Patient Profile");
+    }
+
+    private void openPatientHistory(PatientProfile patient) {
+        userContext.setSelectedPatientUid(patient.getUid());
+        userContext.setSelectedPatientProfile(patient);
+        SceneRouter.go("doctor-patient-history-view.fxml", "Patient Medical History");
     }
 }

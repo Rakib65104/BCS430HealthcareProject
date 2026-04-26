@@ -142,6 +142,20 @@ public class PastAppointmentsController {
             card.getChildren().add(summaryLabel);
         }
 
+        if (appointment.getHospitalFindings() != null && !appointment.getHospitalFindings().isBlank()) {
+            Label findingsLabel = new Label("Hospital findings: " + appointment.getHospitalFindings());
+            findingsLabel.setWrapText(true);
+            findingsLabel.setStyle("-fx-text-fill: #1F2937; -fx-font-size: 12;");
+            card.getChildren().add(findingsLabel);
+        }
+
+        if (appointment.getDiagnosticResults() != null && !appointment.getDiagnosticResults().isBlank()) {
+            Label diagnosticLabel = new Label("Diagnostic results: " + appointment.getDiagnosticResults());
+            diagnosticLabel.setWrapText(true);
+            diagnosticLabel.setStyle("-fx-text-fill: #1F2937; -fx-font-size: 12;");
+            card.getChildren().add(diagnosticLabel);
+        }
+
         if (appointment.getPrescribedMedications() != null && !appointment.getPrescribedMedications().isBlank()) {
             Label medicationLabel = new Label("Prescription sent: " + appointment.getPrescribedMedications());
             medicationLabel.setWrapText(true);
@@ -161,7 +175,7 @@ public class PastAppointmentsController {
 
     @FXML
     private void onBack() {
-        if (userContext.isDoctor()) {
+        if (userContext.isDoctor() || userContext.isHospital()) {
             SceneRouter.go("patient-profile-view.fxml", "Patient Profile");
             return;
         }
@@ -169,7 +183,7 @@ public class PastAppointmentsController {
     }
 
     private String resolveTargetPatientUid() {
-        if (userContext.isDoctor()) {
+        if (userContext.isDoctor() || userContext.isHospital()) {
             if (userContext.getSelectedPatientUid() != null && !userContext.getSelectedPatientUid().isBlank()) {
                 return userContext.getSelectedPatientUid();
             }
@@ -180,7 +194,7 @@ public class PastAppointmentsController {
     }
 
     private String resolveTitle() {
-        if (userContext.isDoctor()) {
+        if (userContext.isDoctor() || userContext.isHospital()) {
             PatientProfile selectedProfile = userContext.getSelectedPatientProfile();
             String patientName = selectedProfile != null ? selectedProfile.getName() : "Patient";
             return patientName + " Past Appointments";

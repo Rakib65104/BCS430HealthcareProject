@@ -148,7 +148,10 @@ public class PatientAppointmentsController {
         // Doctor info
         HBox doctorRow = new HBox();
         doctorRow.setSpacing(10);
-        Label doctorLabel = new Label("Dr. " + (apt.getDoctorName() != null ? apt.getDoctorName() : "Unknown"));
+        String appointmentOwner = apt.getHospitalName() != null && !apt.getHospitalName().isBlank()
+                ? apt.getHospitalName()
+                : "Dr. " + (apt.getDoctorName() != null ? apt.getDoctorName() : "Unknown");
+        Label doctorLabel = new Label(appointmentOwner);
         doctorLabel.setStyle("-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #2C3E50;");
         doctorRow.getChildren().add(doctorLabel);
 
@@ -182,6 +185,13 @@ public class PatientAppointmentsController {
             card.getChildren().add(reasonLabel);
         }
 
+        if (apt.getHospitalName() != null && !apt.getHospitalName().isBlank()) {
+            Label hospitalLabel = new Label("Hospital service: " + fallback(apt.getReferralType(), fallback(apt.getHospitalDepartment(), "Hospital referral")));
+            hospitalLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #0F766E; -fx-font-weight: bold;");
+            hospitalLabel.setWrapText(true);
+            card.getChildren().add(hospitalLabel);
+        }
+
         // Booking notes if available
         if (apt.getNotes() != null && !apt.getNotes().trim().isEmpty()) {
             Label notesLabel = new Label("Booking notes: " + apt.getNotes());
@@ -194,6 +204,20 @@ public class PatientAppointmentsController {
             summaryLabel.setWrapText(true);
             summaryLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #1F2937; -fx-font-weight: bold;");
             card.getChildren().add(summaryLabel);
+        }
+
+        if (apt.getHospitalFindings() != null && !apt.getHospitalFindings().trim().isEmpty()) {
+            Label findingsLabel = new Label("Hospital findings: " + apt.getHospitalFindings());
+            findingsLabel.setWrapText(true);
+            findingsLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #1F2937;");
+            card.getChildren().add(findingsLabel);
+        }
+
+        if (apt.getDiagnosticResults() != null && !apt.getDiagnosticResults().trim().isEmpty()) {
+            Label resultsLabel = new Label("Diagnostic results: " + apt.getDiagnosticResults());
+            resultsLabel.setWrapText(true);
+            resultsLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #1F2937;");
+            card.getChildren().add(resultsLabel);
         }
 
         if (apt.getPrescribedMedications() != null && !apt.getPrescribedMedications().trim().isEmpty()) {
@@ -615,6 +639,10 @@ public class PatientAppointmentsController {
             case "CANCELLED" -> "-fx-background-color: #E74C3C; -fx-text-fill: white; -fx-font-size: 11; -fx-font-weight: bold;";
             default -> "-fx-background-color: #95A5A6; -fx-text-fill: white; -fx-font-size: 11; -fx-font-weight: bold;";
         };
+    }
+
+    private String fallback(String primary, String alternate) {
+        return primary == null || primary.isBlank() ? alternate : primary;
     }
 
     private boolean matchesFilter(Appointment appointment, String filter) {

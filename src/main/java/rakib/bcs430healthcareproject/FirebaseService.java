@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -996,6 +997,31 @@ public class FirebaseService {
         });
     }
 
+    public CompletableFuture<String> createHospitalReferralAppointment(Appointment appointment) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (appointment == null) {
+                    throw new RuntimeException("Referral appointment cannot be null.");
+                }
+                if (appointment.getHospitalUid() == null || appointment.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital is required for a referral.");
+                }
+                if (appointment.getHospitalName() == null || appointment.getHospitalName().isBlank()) {
+                    throw new RuntimeException("Hospital name is required for a referral.");
+                }
+                if (appointment.getDoctorUid() == null || appointment.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Referring doctor is required.");
+                }
+
+                appointment.setReferralAuthorizedByDoctorUid(appointment.getDoctorUid());
+                appointment.setReferralAuthorizedByDoctorName(appointment.getDoctorName());
+                return internalSaveAppointment(appointment);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create hospital referral: " + e.getMessage(), e);
+            }
+        });
+    }
+
     private String internalSaveAppointment(Appointment appointment) throws Exception {
         if (appointment == null) {
             throw new RuntimeException("Appointment cannot be null.");
@@ -1033,14 +1059,17 @@ public class FirebaseService {
             throw new RuntimeException("Appointment time slot is required.");
         }
 
-        boolean available = isSlotStillAvailable(
-                appointment.getDoctorUid(),
-                appointment.getAppointmentDate(),
-                appointment.getAppointmentSlot()
-        ).get();
+        boolean hospitalReferral = appointment.getHospitalUid() != null && !appointment.getHospitalUid().isBlank();
+        if (!hospitalReferral) {
+            boolean available = isSlotStillAvailable(
+                    appointment.getDoctorUid(),
+                    appointment.getAppointmentDate(),
+                    appointment.getAppointmentSlot()
+            ).get();
 
-        if (!available) {
-            throw new RuntimeException("This slot has already been booked.");
+            if (!available) {
+                throw new RuntimeException("This slot has already been booked.");
+            }
         }
 
         String appointmentId = firestore.collection(APPOINTMENTS_COLLECTION).document().getId();
@@ -1081,6 +1110,10 @@ public class FirebaseService {
                         appointments.add(appointment);
                     }
                 }
+                appointments.sort(Comparator.comparing(
+                        Appointment::resolveAppointmentEpochMillis,
+                        Comparator.nullsLast(Long::compareTo)
+                ));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to retrieve appointments: " + e.getMessage(), e);
             }
@@ -1107,6 +1140,10 @@ public class FirebaseService {
                         appointments.add(appointment);
                     }
                 }
+                appointments.sort(Comparator.comparing(
+                        Appointment::resolveAppointmentEpochMillis,
+                        Comparator.nullsLast(Long::compareTo)
+                ));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to retrieve doctor appointments: " + e.getMessage(), e);
             }
@@ -1870,6 +1907,57 @@ public class FirebaseService {
         });
     }
 
+    public CompletableFuture<Void> publishHospitalDiagnosticResults(Appointment appointment) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (appointment == null || appointment.getAppointmentId() == null || appointment.getAppointmentId().isBlank()) {
+                    throw new RuntimeException("Appointment is required to upload diagnostic results.");
+                }
+                if (appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
+                    throw new RuntimeException("Patient is required to upload diagnostic results.");
+                }
+
+                updateAppointment(appointment).get();
+
+                String hospitalName = valueOrDefault(appointment.getHospitalName(), "the hospital");
+                String serviceType = valueOrDefault(appointment.getReferralType(), "hospital service");
+
+                notifyPatient(
+                        appointment.getPatientUid(),
+                        "Diagnostic Results Available",
+                        hospitalName + " uploaded your " + serviceType + " results.",
+                        "DIAGNOSTIC_RESULT",
+                        appointment.getAppointmentId()
+                );
+
+                if (appointment.getDoctorUid() != null && !appointment.getDoctorUid().isBlank()) {
+                    notifyDoctor(
+                            appointment.getDoctorUid(),
+                            "Hospital Results Uploaded",
+                            hospitalName + " uploaded results for " + valueOrDefault(appointment.getPatientName(), "your patient") + ".",
+                            "DIAGNOSTIC_RESULT",
+                            appointment.getAppointmentId()
+                    );
+
+                    Message message = new Message();
+                    message.setDoctorUid(appointment.getDoctorUid());
+                    message.setDoctorName(appointment.getDoctorName());
+                    message.setPatientUid(appointment.getPatientUid());
+                    message.setPatientName(appointment.getPatientName());
+                    message.setSenderUid(appointment.getDoctorUid());
+                    message.setSenderName(valueOrDefault(appointment.getDoctorName(), "Care Team"));
+                    message.setSenderRole("SYSTEM");
+                    message.setMessageText(buildDiagnosticMessage(appointment, hospitalName, serviceType));
+                    message.setCreatedAt(System.currentTimeMillis());
+                    message.setRead(false);
+                    saveMessage(message).get();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to publish hospital diagnostic results: " + e.getMessage(), e);
+            }
+        });
+    }
+
     public CompletableFuture<Void> deleteAppointment(String appointmentId) {
         return CompletableFuture.runAsync(() -> {
             try {
@@ -2038,6 +2126,33 @@ public class FirebaseService {
 
         createNotification(notification);
     }
+
+    private String buildDiagnosticMessage(Appointment appointment, String hospitalName, String serviceType) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(hospitalName)
+                .append(" uploaded ")
+                .append(serviceType)
+                .append(" results for ")
+                .append(valueOrDefault(appointment.getPatientName(), "the patient"))
+                .append(".");
+
+        if (appointment.getHospitalFindings() != null && !appointment.getHospitalFindings().isBlank()) {
+            builder.append("\n\nHospital findings:\n")
+                    .append(appointment.getHospitalFindings().trim());
+        }
+
+        if (appointment.getDiagnosticResults() != null && !appointment.getDiagnosticResults().isBlank()) {
+            builder.append("\n\nDiagnostic results:\n")
+                    .append(appointment.getDiagnosticResults().trim());
+        }
+
+        return builder.toString();
+    }
+
+    private String valueOrDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
     public CompletableFuture<String> addHospitalDepartment(HospitalDepartment department) {
         return CompletableFuture.supplyAsync(() -> {
             try {

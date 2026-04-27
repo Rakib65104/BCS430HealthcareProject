@@ -92,11 +92,11 @@ public class HospitalPatientsController {
         viewButton.setStyle("-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 8;");
         viewButton.setOnAction(event -> openPatientProfile(patient));
 
-        Button historyButton = new Button("Medical History");
-        historyButton.setStyle("-fx-background-color: #E2E8F0; -fx-text-fill: #134E4A; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 8;");
-        historyButton.setOnAction(event -> openPatientHistory(patient));
+        Button prescriptionButton = new Button("Send Prescription");
+        prescriptionButton.setStyle("-fx-background-color: #14B8A6; -fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 8;");
+        prescriptionButton.setOnAction(event -> openPrescriptionForm(patient));
 
-        actions.getChildren().addAll(viewButton, historyButton);
+        actions.getChildren().addAll(viewButton, prescriptionButton);
 
         card.getChildren().addAll(nameLabel, emailLabel, phoneLabel, extraLabel, actions);
         return card;
@@ -174,9 +174,9 @@ public class HospitalPatientsController {
         SceneRouter.go("patient-profile-view.fxml", "Patient Profile");
     }
 
-    private void openPatientHistory(PatientProfile patient) {
+    private void openPrescriptionForm(PatientProfile patient) {
         userContext.setSelectedPatientUid(patient.getUid());
         userContext.setSelectedPatientProfile(patient);
-        SceneRouter.go("doctor-patient-history-view.fxml", "Patient Medical History");
+        SceneRouter.go("hospital-prescription-view.fxml", "Send Prescription");
     }
 }

@@ -1,187 +1,504 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.geometry.Insets;
+import javafx.fxml.Initializable;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.application.Platform;
 
+import java.net.URL;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
-public class HospitalScheduleController {
-
-    @FXML private DatePicker datePicker;
-    @FXML private Label scheduleHeaderLabel;
-    @FXML private VBox scheduleListVBox;
-
-    private final FirebaseService firebaseService = new FirebaseService();
-    private final UserContext userContext = UserContext.getInstance();
-
-    private static final DateTimeFormatter DATE_HEADER_FORMAT =
-            DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy");
+public class HospitalScheduleController implements Initializable {
 
     private static final DateTimeFormatter TIME_FORMAT =
-            DateTimeFormatter.ofPattern("h:mm a");
+            DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH);
 
-    @FXML
-    public void initialize() {
-        datePicker.setValue(LocalDate.now());
-        loadAppointmentsForDate(LocalDate.now());
+    @FXML private TableView<Schedule> appointmentTable;
+    @FXML private TableColumn<Schedule, String> colTime;
+    @FXML private TableColumn<Schedule, String> colPatient;
+    @FXML private TableColumn<Schedule, String> colType;
+    @FXML private TableColumn<Schedule, String> colStatus;
+    @FXML private TableColumn<Schedule, String> colNotes;
+
+    @FXML private Label scheduleSummaryLabel;
+    @FXML private DatePicker scheduleDatePicker;
+    @FXML private Button btnReschedule;
+    @FXML private Button btnPrescription;
+    @FXML private Button btnEditPatientProfile;
+
+    private final ObservableList<Schedule> scheduleList = FXCollections.observableArrayList();
+
+    private FirebaseService firebaseService;
+    private UserContext userContext;
+    private List<Appointment> allAppointments = new ArrayList<>();
+
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        firebaseService = new FirebaseService();
+        userContext = UserContext.getInstance();
+
+        if (!userContext.isLoggedIn() || !userContext.isHospital()) {
+            SceneRouter.go("login-view.fxml", "Login");
+            return;
+        }
+
+        setupTable();
+        scheduleDatePicker.setValue(LocalDate.now());
+        loadAppointments();
     }
 
-    @FXML
-    private void onLoadForDate() {
-        LocalDate selectedDate = datePicker.getValue() == null ? LocalDate.now() : datePicker.getValue();
-        loadAppointmentsForDate(selectedDate);
+    private void setupTable() {
+        colTime.setCellValueFactory(cell -> cell.getValue().timeProperty());
+        colPatient.setCellValueFactory(cell -> cell.getValue().patientNameProperty());
+        colType.setCellValueFactory(cell -> cell.getValue().typeProperty());
+        colStatus.setCellValueFactory(cell -> cell.getValue().statusProperty());
+        colNotes.setCellValueFactory(cell -> cell.getValue().notesProperty());
+        appointmentTable.setItems(scheduleList);
     }
 
-    @FXML
-    private void onToday() {
-        datePicker.setValue(LocalDate.now());
-        loadAppointmentsForDate(LocalDate.now());
-    }
-
-    private void loadAppointmentsForDate(LocalDate date) {
+    private void loadAppointments() {
         HospitalProfile hospital = userContext.getHospitalProfile();
-
-        if (hospital == null) {
-            showEmpty("No hospital is currently loaded.");
+        if (hospital == null || hospital.getUid() == null || hospital.getUid().isBlank()) {
+            showAlert("Hospital Error", "Hospital account details could not be loaded.");
             return;
         }
 
         firebaseService.getAppointmentsForHospital(hospital.getUid())
                 .thenAccept(appointments -> Platform.runLater(() -> {
-                    List<Appointment> filtered = new ArrayList<>();
-                    if (appointments != null) {
-                        for (Appointment appointment : appointments) {
-                            if (appointment != null && isSameDate(appointment, date) && !isCancelled(appointment)) {
-                                filtered.add(appointment);
-                            }
-                        }
-                    }
-
-                    scheduleHeaderLabel.setText("Appointments • " + date.format(DATE_HEADER_FORMAT));
-                    renderAppointments(filtered);
+                    allAppointments = appointments == null ? new ArrayList<>() : new ArrayList<>(appointments);
+                    allAppointments.sort(Comparator.comparing(
+                            Appointment::resolveAppointmentEpochMillis,
+                            Comparator.nullsLast(Long::compareTo)
+                    ));
+                    refreshTableForDate();
                 }))
                 .exceptionally(e -> {
-                    Platform.runLater(() -> showEmpty("Unable to load appointments."));
+                    Platform.runLater(() -> {
+                        scheduleList.clear();
+                        scheduleSummaryLabel.setText("Unable to load schedule.");
+                        showAlert("Schedule Error", cleanErrorMessage(e));
+                    });
                     return null;
                 });
     }
 
-    private void renderAppointments(List<Appointment> appointments) {
-        scheduleListVBox.getChildren().clear();
+    @FXML
+    private void handleDateChange() {
+        refreshTableForDate();
+    }
 
-        if (appointments == null || appointments.isEmpty()) {
-            showEmpty("No appointments found for this date.");
+    @FXML
+    private void onToday() {
+        scheduleDatePicker.setValue(LocalDate.now());
+        refreshTableForDate();
+    }
+
+    private void refreshTableForDate() {
+        LocalDate selectedDate = scheduleDatePicker.getValue();
+        scheduleList.clear();
+
+        if (selectedDate == null) {
+            scheduleSummaryLabel.setText("Choose a date to view appointments.");
             return;
         }
 
-        for (Appointment appointment : appointments) {
-            scheduleListVBox.getChildren().add(buildAppointmentCard(appointment));
+        for (Appointment appointment : allAppointments) {
+            if (appointment == null || "CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
+                continue;
+            }
+
+            LocalDate appointmentDate = resolveAppointmentDate(appointment);
+            if (appointmentDate == null || !selectedDate.equals(appointmentDate)) {
+                continue;
+            }
+
+            Schedule schedule = new Schedule(
+                    formatAppointmentTime(appointment),
+                    valueOrDefault(appointment.getPatientName(), "Unknown Patient"),
+                    valueOrDefault(appointment.getReferralType(),
+                            valueOrDefault(appointment.getHospitalDepartment(),
+                                    valueOrDefault(appointment.getReason(), "Hospital visit"))),
+                    valueOrDefault(appointment.getStatus(), "SCHEDULED"),
+                    buildScheduleNotes(appointment)
+            );
+            schedule.setSourceAppointment(appointment);
+            scheduleList.add(schedule);
+        }
+
+        scheduleList.sort(Comparator.comparing(
+                schedule -> parseTime(schedule.getTime()),
+                Comparator.nullsLast(LocalTime::compareTo)
+        ));
+
+        if (scheduleList.isEmpty()) {
+            scheduleSummaryLabel.setText("No appointments scheduled for " + selectedDate + ".");
+        } else {
+            scheduleSummaryLabel.setText("Showing " + scheduleList.size() + " hospital appointment(s) for " + selectedDate + ".");
         }
     }
 
-    private VBox buildAppointmentCard(Appointment appointment) {
-        VBox card = new VBox(6);
-        card.setPadding(new Insets(14));
-        card.setStyle(
-                "-fx-background-color: white;" +
-                        "-fx-background-radius: 14;" +
-                        "-fx-border-color: #D1FAE5;" +
-                        "-fx-border-radius: 14;"
+    @FXML
+    private void handleReschedule() {
+        Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+        if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
+            showAlert("No Selection", "Please select an appointment to reschedule.");
+            return;
+        }
+
+        Appointment appointment = selectedSchedule.getSourceAppointment();
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Reschedule Appointment");
+        dialog.setHeaderText("Choose a new time for " + valueOrDefault(appointment.getPatientName(), "this patient"));
+
+        ButtonType saveType = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveType, ButtonType.CANCEL);
+
+        DatePicker dialogDatePicker = new DatePicker(resolveAppointmentDate(appointment));
+        ComboBox<String> timeComboBox = new ComboBox<>();
+        timeComboBox.getItems().addAll(
+                "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM",
+                "11:30 AM", "01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM",
+                "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"
         );
+        timeComboBox.setEditable(true);
+        timeComboBox.setValue(formatAppointmentTime(appointment));
 
-        Label patientLabel = new Label(valueOrDefault(appointment.getPatientName(), "Unknown Patient"));
-        patientLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 16; -fx-font-weight: bold;");
+        TextArea notesArea = new TextArea(valueOrDefault(appointment.getNotes(), ""));
+        notesArea.setWrapText(true);
+        notesArea.setPrefRowCount(4);
+        notesArea.setPromptText("Optional scheduling notes");
 
-        Label timeLabel = new Label("Time: " + formatTime(appointment));
-        timeLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12;");
-
-        Label doctorLabel = new Label("Doctor: " + valueOrDefault(appointment.getDoctorName(), "Not assigned"));
-        doctorLabel.setStyle("-fx-text-fill: #475569; -fx-font-size: 12;");
-
-        Label reasonLabel = new Label("Reason: " + valueOrDefault(appointment.getReferralType(), valueOrDefault(appointment.getReason(), "General visit")));
-        reasonLabel.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
-        reasonLabel.setWrapText(true);
-
-        Label referralLabel = new Label("Referral notes: " + valueOrDefault(appointment.getReferralNotes(), valueOrDefault(appointment.getNotes(), "No referral notes shared")));
-        referralLabel.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
-        referralLabel.setWrapText(true);
-
-        Label statusLabel = new Label("Status: " + valueOrDefault(appointment.getStatus(), "SCHEDULED"));
-        statusLabel.setStyle("-fx-text-fill: #166534; -fx-font-size: 12; -fx-font-weight: bold;");
-
-        HBox actionRow = new HBox(8);
-
-        Button historyButton = new Button("Patient History");
-        historyButton.setStyle("-fx-background-color: #E2E8F0; -fx-text-fill: #134E4A; -fx-font-size: 11; -fx-font-weight: bold; -fx-background-radius: 8;");
-        historyButton.setOnAction(event -> openPatientHistory(appointment));
-
-        Button uploadButton = new Button("Upload Results");
-        uploadButton.setStyle("-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 11; -fx-font-weight: bold; -fx-background-radius: 8;");
-        uploadButton.setOnAction(event -> openUploadResultsDialog(appointment));
-
-        actionRow.getChildren().addAll(historyButton, uploadButton);
-
-        card.getChildren().addAll(patientLabel, timeLabel, doctorLabel, reasonLabel, referralLabel, statusLabel, actionRow);
-        return card;
-    }
-
-    private void showEmpty(String text) {
-        scheduleListVBox.getChildren().clear();
-
-        VBox card = new VBox();
-        card.setPadding(new Insets(14));
-        card.setStyle(
-                "-fx-background-color: #F8FAFC;" +
-                        "-fx-background-radius: 12;" +
-                        "-fx-border-color: #E2E8F0;" +
-                        "-fx-border-radius: 12;"
+        VBox content = new VBox(10,
+                new Label("Appointment date"),
+                dialogDatePicker,
+                new Label("Time slot"),
+                timeComboBox,
+                new Label("Notes"),
+                notesArea
         );
+        content.setPrefWidth(360);
+        dialog.getDialogPane().setContent(content);
 
-        Label label = new Label(text);
-        label.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
-        card.getChildren().add(label);
+        if (dialog.showAndWait().orElse(ButtonType.CANCEL) != saveType) {
+            return;
+        }
 
-        scheduleListVBox.getChildren().add(card);
+        LocalDate selectedDate = dialogDatePicker.getValue();
+        String selectedTime = timeComboBox.getValue() == null ? "" : timeComboBox.getValue().trim();
+
+        if (selectedDate == null || selectedTime.isBlank()) {
+            showAlert("Validation Error", "Please choose both a date and time for the reschedule.");
+            return;
+        }
+
+        long appointmentEpoch = resolveEpochMillis(selectedDate, selectedTime);
+        appointment.setAppointmentDate(selectedDate.toString());
+        appointment.setAppointmentSlot(selectedTime);
+        appointment.setAppointmentTime(selectedDate + " " + selectedTime);
+        appointment.setAppointmentDateTime(appointmentEpoch);
+        appointment.setNotes(notesArea.getText() == null ? "" : notesArea.getText().trim());
+        appointment.setStatus("SCHEDULED");
+
+        firebaseService.updateAppointment(appointment)
+                .thenAccept(v -> Platform.runLater(() -> {
+                    firebaseService.notifyPatient(
+                            appointment.getPatientUid(),
+                            "Hospital Appointment Updated",
+                            valueOrDefault(appointment.getHospitalName(), "Your hospital")
+                                    + " rescheduled your appointment to "
+                                    + appointment.getAppointmentDate() + " at " + appointment.getAppointmentSlot(),
+                            "APPOINTMENT",
+                            appointment.getAppointmentId()
+                    );
+
+                    if (appointment.getDoctorUid() != null && !appointment.getDoctorUid().isBlank()) {
+                        firebaseService.notifyDoctor(
+                                appointment.getDoctorUid(),
+                                "Hospital Appointment Updated",
+                                valueOrDefault(appointment.getHospitalName(), "Hospital")
+                                        + " rescheduled " + valueOrDefault(appointment.getPatientName(), "a patient")
+                                        + " to " + appointment.getAppointmentDate() + " at " + appointment.getAppointmentSlot(),
+                                "APPOINTMENT",
+                                appointment.getAppointmentId()
+                        );
+                    }
+
+                    loadAppointments();
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showAlert("Update Error", cleanErrorMessage(e)));
+                    return null;
+                });
     }
 
-    private boolean isSameDate(Appointment appointment, LocalDate targetDate) {
+    @FXML
+    private void handleSendPrescription() {
+        Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+        if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
+            showAlert("No Patient Selected", "Please select a patient from the schedule to send a prescription.");
+            return;
+        }
+
+        openPatientContext(
+                selectedSchedule.getSourceAppointment().getPatientUid(),
+                "hospital-prescription-view.fxml",
+                "Send Prescription"
+        );
+    }
+
+    @FXML
+    private void handleEditPatientProfile() {
+        Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+        if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
+            showAlert("No Patient Selected", "Please select an appointment to open the patient profile.");
+            return;
+        }
+
+        openPatientContext(
+                selectedSchedule.getSourceAppointment().getPatientUid(),
+                "patient-profile-view.fxml",
+                "Patient Profile"
+        );
+    }
+
+    @FXML
+    private void handleCancelSelected() {
+        Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+        if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
+            showAlert("No Selection", "Please select an appointment to cancel.");
+            return;
+        }
+
+        Appointment appointment = selectedSchedule.getSourceAppointment();
+
+        firebaseService.deleteAppointment(appointment.getAppointmentId())
+                .thenAccept(v -> Platform.runLater(() -> {
+                    firebaseService.notifyPatient(
+                            appointment.getPatientUid(),
+                            "Hospital Appointment Cancelled",
+                            valueOrDefault(appointment.getHospitalName(), "Your hospital")
+                                    + " cancelled your appointment on " + appointment.getAppointmentDate()
+                                    + " at " + appointment.getAppointmentSlot() + ".",
+                            "APPOINTMENT",
+                            appointment.getAppointmentId()
+                    );
+                    loadAppointments();
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showAlert("Cancel Error", cleanErrorMessage(e)));
+                    return null;
+                });
+    }
+
+    @FXML
+    private void handleMarkComplete() {
+        Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+        if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
+            showAlert("No Selection", "Please select an appointment to mark complete.");
+            return;
+        }
+
+        Appointment appointment = selectedSchedule.getSourceAppointment();
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Complete Appointment");
+        dialog.setHeaderText("Add hospital findings for " + valueOrDefault(appointment.getPatientName(), "this patient"));
+
+        ButtonType completeType = new ButtonType("Save Results", ButtonBar.ButtonData.OK_DONE);
+        ButtonType completeAndEditType = new ButtonType("Save and Edit Profile", ButtonBar.ButtonData.OTHER);
+        dialog.getDialogPane().getButtonTypes().addAll(completeType, completeAndEditType, ButtonType.CANCEL);
+
+        TextArea findingsArea = new TextArea(valueOrDefault(appointment.getHospitalFindings(), ""));
+        findingsArea.setPromptText("Summarize the visit or treatment.");
+        findingsArea.setWrapText(true);
+        findingsArea.setPrefRowCount(4);
+
+        TextArea resultsArea = new TextArea(valueOrDefault(appointment.getDiagnosticResults(), ""));
+        resultsArea.setPromptText("Add diagnostic results, imaging findings, or lab notes.");
+        resultsArea.setWrapText(true);
+        resultsArea.setPrefRowCount(6);
+
+        VBox content = new VBox(10,
+                new Label("Hospital findings"),
+                findingsArea,
+                new Label("Diagnostic results"),
+                resultsArea
+        );
+        content.setPrefWidth(420);
+        dialog.getDialogPane().setContent(content);
+
+        ButtonType result = dialog.showAndWait().orElse(ButtonType.CANCEL);
+        if (result == ButtonType.CANCEL) {
+            return;
+        }
+
+        String findings = findingsArea.getText() == null ? "" : findingsArea.getText().trim();
+        String diagnosticResults = resultsArea.getText() == null ? "" : resultsArea.getText().trim();
+
+        if (findings.isBlank() && diagnosticResults.isBlank()) {
+            showAlert("Validation Error", "Add hospital findings or diagnostic results before completing the appointment.");
+            return;
+        }
+
+        appointment.setHospitalFindings(findings);
+        appointment.setDiagnosticResults(diagnosticResults);
+        appointment.setDiagnosticResultsUploadedAt(System.currentTimeMillis());
+        appointment.setVisitSummary(findings.isBlank() ? diagnosticResults : findings);
+        appointment.setStatus("COMPLETED");
+        appointment.setCompletedAt(System.currentTimeMillis());
+
+        firebaseService.publishHospitalDiagnosticResults(appointment)
+                .thenRun(() -> Platform.runLater(() -> {
+                    if (result == completeAndEditType) {
+                        openPatientContext(appointment.getPatientUid(), "patient-profile-view.fxml", "Patient Profile");
+                    } else {
+                        loadAppointments();
+                    }
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showAlert("Update Error", cleanErrorMessage(e)));
+                    return null;
+                });
+    }
+
+    private void openPatientContext(String patientUid, String destinationFxml, String title) {
+        firebaseService.getPatientProfile(patientUid)
+                .thenAccept(profile -> Platform.runLater(() -> {
+                    if (profile == null) {
+                        showAlert("Patient Error", "The selected patient could not be loaded.");
+                        return;
+                    }
+                    userContext.setSelectedPatientProfile(profile);
+                    userContext.setSelectedPatientUid(profile.getUid());
+                    SceneRouter.go(destinationFxml, title);
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showAlert("Patient Error", cleanErrorMessage(e)));
+                    return null;
+                });
+    }
+
+    private LocalDate resolveAppointmentDate(Appointment appointment) {
+        if (appointment == null) {
+            return null;
+        }
+
+        if (appointment.getAppointmentDate() != null && !appointment.getAppointmentDate().isBlank()) {
+            try {
+                return LocalDate.parse(appointment.getAppointmentDate());
+            } catch (Exception ignored) {
+                // Fall back to epoch parsing below.
+            }
+        }
+
+        Long epoch = appointment.resolveAppointmentEpochMillis();
+        if (epoch == null) {
+            return null;
+        }
+
+        return Instant.ofEpochMilli(epoch)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
+    }
+
+    private long resolveEpochMillis(LocalDate date, String time) {
+        LocalTime localTime = parseTime(time);
+        if (localTime == null) {
+            throw new IllegalArgumentException("Invalid appointment time: " + time);
+        }
+        LocalDateTime localDateTime = LocalDateTime.of(date, localTime);
+        return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    private LocalTime parseTime(String time) {
+        if (time == null || time.isBlank()) {
+            return null;
+        }
+
         try {
-            LocalDate appointmentDate = Instant.ofEpochMilli(appointment.getAppointmentDateTime())
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate();
-            return appointmentDate.equals(targetDate);
+            return LocalTime.parse(time.trim().toUpperCase(Locale.ENGLISH), TIME_FORMAT);
         } catch (Exception e) {
-            return false;
+            return null;
         }
     }
 
-    private boolean isCancelled(Appointment appointment) {
-        return appointment.getStatus() != null && appointment.getStatus().equalsIgnoreCase("CANCELLED");
+    private String formatAppointmentTime(Appointment appointment) {
+        if (appointment.getAppointmentSlot() != null && !appointment.getAppointmentSlot().isBlank()) {
+            return appointment.getAppointmentSlot();
+        }
+
+        Long epoch = appointment.resolveAppointmentEpochMillis();
+        if (epoch == null) {
+            return "";
+        }
+
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneId.systemDefault())
+                .format(TIME_FORMAT);
     }
 
-    private String formatTime(Appointment appointment) {
-        try {
-            return Instant.ofEpochMilli(appointment.getAppointmentDateTime())
-                    .atZone(ZoneId.systemDefault())
-                    .format(TIME_FORMAT);
-        } catch (Exception e) {
-            return valueOrDefault(appointment.getAppointmentTime(), "Unknown");
+    private String buildScheduleNotes(Appointment appointment) {
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
+            String summary = valueOrDefault(appointment.getHospitalFindings(), appointment.getVisitSummary());
+            if (!summary.isBlank()) {
+                return summary;
+            }
         }
+
+        if (appointment.getReferralNotes() != null && !appointment.getReferralNotes().isBlank()) {
+            return appointment.getReferralNotes();
+        }
+
+        return valueOrDefault(appointment.getNotes(), "");
+    }
+
+    private String cleanErrorMessage(Throwable throwable) {
+        if (throwable == null) {
+            return "Unknown error";
+        }
+
+        Throwable cause = throwable;
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+
+        String message = cause.getMessage();
+        return message == null || message.isBlank() ? "Unknown error" : message;
+    }
+
+    private String valueOrDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private void showAlert(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 
     @FXML private void onDashboard() { SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard"); }
@@ -193,80 +510,5 @@ public class HospitalScheduleController {
     private void onLogout() {
         userContext.clearUserData();
         SceneRouter.go("login-view.fxml", "Login");
-    }
-
-    private String valueOrDefault(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
-    }
-
-    private void openPatientHistory(Appointment appointment) {
-        if (appointment == null || appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
-            return;
-        }
-
-        firebaseService.getPatientProfile(appointment.getPatientUid())
-                .thenAccept(profile -> Platform.runLater(() -> {
-                    userContext.setSelectedPatientUid(appointment.getPatientUid());
-                    userContext.setSelectedPatientProfile(profile);
-                    SceneRouter.go("doctor-patient-history-view.fxml", "Patient Medical History");
-                }))
-                .exceptionally(e -> null);
-    }
-
-    private void openUploadResultsDialog(Appointment appointment) {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Upload Diagnostic Results");
-        dialog.setHeaderText("Update results for " + valueOrDefault(appointment.getPatientName(), "this patient"));
-
-        ButtonType saveType = new ButtonType("Publish Results", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveType, ButtonType.CANCEL);
-
-        TextArea findingsArea = new TextArea();
-        findingsArea.setPromptText("Summarize what happened during the hospital visit.");
-        findingsArea.setWrapText(true);
-        findingsArea.setPrefRowCount(4);
-        findingsArea.setText(valueOrDefault(appointment.getHospitalFindings(), ""));
-
-        TextArea resultsArea = new TextArea();
-        resultsArea.setPromptText("Enter diagnostic results, imaging impressions, or lab findings.");
-        resultsArea.setWrapText(true);
-        resultsArea.setPrefRowCount(6);
-        resultsArea.setText(valueOrDefault(appointment.getDiagnosticResults(), ""));
-
-        VBox content = new VBox(10,
-                new Label("Hospital findings"),
-                findingsArea,
-                new Label("Diagnostic results"),
-                resultsArea
-        );
-        content.setPrefWidth(430);
-        dialog.getDialogPane().setContent(content);
-
-        if (dialog.showAndWait().orElse(ButtonType.CANCEL) != saveType) {
-            return;
-        }
-
-        String findings = findingsArea.getText() == null ? "" : findingsArea.getText().trim();
-        String results = resultsArea.getText() == null ? "" : resultsArea.getText().trim();
-
-        if (findings.isBlank() && results.isBlank()) {
-            return;
-        }
-
-        appointment.setHospitalFindings(findings);
-        appointment.setDiagnosticResults(results);
-        appointment.setDiagnosticResultsUploadedAt(System.currentTimeMillis());
-        appointment.setVisitSummary(findings.isBlank() ? results : findings);
-        appointment.setStatus("COMPLETED");
-        appointment.setCompletedAt(System.currentTimeMillis());
-
-        firebaseService.publishHospitalDiagnosticResults(appointment)
-                .thenRun(() -> Platform.runLater(() -> loadAppointmentsForDate(
-                        datePicker.getValue() == null ? LocalDate.now() : datePicker.getValue()
-                )))
-                .exceptionally(e -> {
-                    Platform.runLater(() -> showEmpty("Unable to publish diagnostic results."));
-                    return null;
-                });
     }
 }

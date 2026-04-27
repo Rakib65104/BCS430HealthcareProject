@@ -5,6 +5,10 @@ import javafx.stage.Stage;
 
 public class HelloApplication extends Application {
 
+    static {
+        JavaFxRuntimeSupport.configure();
+    }
+
     @Override
     public void start(Stage stage) {
         // Initialize Firebase Admin SDK

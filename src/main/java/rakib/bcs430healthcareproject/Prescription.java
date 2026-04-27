@@ -12,6 +12,8 @@ public class Prescription {
     private String prescriptionId;
     private String doctorUid;
     private String doctorName;
+    private String hospitalUid;
+    private String hospitalName;
     private String patientUid;
     private String patientName;
     private String pharmacyName;
@@ -60,6 +62,22 @@ public class Prescription {
 
     public void setDoctorName(String doctorName) {
         this.doctorName = doctorName;
+    }
+
+    public String getHospitalUid() {
+        return hospitalUid;
+    }
+
+    public void setHospitalUid(String hospitalUid) {
+        this.hospitalUid = hospitalUid;
+    }
+
+    public String getHospitalName() {
+        return hospitalName;
+    }
+
+    public void setHospitalName(String hospitalName) {
+        this.hospitalName = hospitalName;
     }
 
     public String getPatientUid() {

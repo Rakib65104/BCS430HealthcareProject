@@ -23,6 +23,10 @@ public class Appointment {
     private String patientName;
     private String doctorName;
 
+    private String hospitalUid;
+    private String hospitalName;
+    private String hospitalDepartment;
+
     // Timestamp for sorting
     private Long appointmentDateTime; // Unix timestamp
 
@@ -43,7 +47,16 @@ public class Appointment {
 
     private String notes;
 
+    private String referralType;
+    private String referralAuthorizedByDoctorUid;
+    private String referralAuthorizedByDoctorName;
+    private String referralNotes;
+
     private String visitSummary;
+
+    private String hospitalFindings;
+    private String diagnosticResults;
+    private Long diagnosticResultsUploadedAt;
 
     private String prescribedMedications;
 
@@ -111,6 +124,30 @@ public class Appointment {
 
     public void setDoctorName(String doctorName) {
         this.doctorName = doctorName;
+    }
+
+    public String getHospitalUid() {
+        return hospitalUid;
+    }
+
+    public void setHospitalUid(String hospitalUid) {
+        this.hospitalUid = hospitalUid;
+    }
+
+    public String getHospitalName() {
+        return hospitalName;
+    }
+
+    public void setHospitalName(String hospitalName) {
+        this.hospitalName = hospitalName;
+    }
+
+    public String getHospitalDepartment() {
+        return hospitalDepartment;
+    }
+
+    public void setHospitalDepartment(String hospitalDepartment) {
+        this.hospitalDepartment = hospitalDepartment;
     }
 
     public Long getAppointmentDateTime() {
@@ -190,12 +227,68 @@ public class Appointment {
         this.notes = notes;
     }
 
+    public String getReferralType() {
+        return referralType;
+    }
+
+    public void setReferralType(String referralType) {
+        this.referralType = referralType;
+    }
+
+    public String getReferralAuthorizedByDoctorUid() {
+        return referralAuthorizedByDoctorUid;
+    }
+
+    public void setReferralAuthorizedByDoctorUid(String referralAuthorizedByDoctorUid) {
+        this.referralAuthorizedByDoctorUid = referralAuthorizedByDoctorUid;
+    }
+
+    public String getReferralAuthorizedByDoctorName() {
+        return referralAuthorizedByDoctorName;
+    }
+
+    public void setReferralAuthorizedByDoctorName(String referralAuthorizedByDoctorName) {
+        this.referralAuthorizedByDoctorName = referralAuthorizedByDoctorName;
+    }
+
+    public String getReferralNotes() {
+        return referralNotes;
+    }
+
+    public void setReferralNotes(String referralNotes) {
+        this.referralNotes = referralNotes;
+    }
+
     public String getVisitSummary() {
         return visitSummary;
     }
 
     public void setVisitSummary(String visitSummary) {
         this.visitSummary = visitSummary;
+    }
+
+    public String getHospitalFindings() {
+        return hospitalFindings;
+    }
+
+    public void setHospitalFindings(String hospitalFindings) {
+        this.hospitalFindings = hospitalFindings;
+    }
+
+    public String getDiagnosticResults() {
+        return diagnosticResults;
+    }
+
+    public void setDiagnosticResults(String diagnosticResults) {
+        this.diagnosticResults = diagnosticResults;
+    }
+
+    public Long getDiagnosticResultsUploadedAt() {
+        return diagnosticResultsUploadedAt;
+    }
+
+    public void setDiagnosticResultsUploadedAt(Long diagnosticResultsUploadedAt) {
+        this.diagnosticResultsUploadedAt = diagnosticResultsUploadedAt;
     }
 
     public String getPrescribedMedications() {

@@ -3,20 +3,36 @@ package rakib.bcs430healthcareproject;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Controller for the doctor-side patient list.
  */
 public class DoctorPatientsController {
+
+    private static final DateTimeFormatter REFERRAL_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH);
 
     @FXML private Label doctorNameLabel;
     @FXML private Label statusLabel;
@@ -100,6 +116,10 @@ public class DoctorPatientsController {
         sendTextButton.setStyle("-fx-background-color: #0EA5E9; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
         sendTextButton.setOnAction(event -> onSendText(patient));
 
+        Button referButton = new Button("Refer Hospital");
+        referButton.setStyle("-fx-background-color: #7C3AED; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
+        referButton.setOnAction(event -> onReferHospital(patient));
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -107,6 +127,7 @@ public class DoctorPatientsController {
                 viewProfileButton,
                 sendPrescriptionButton,
                 sendTextButton,
+                referButton,
                 spacer
         );
 
@@ -132,6 +153,181 @@ public class DoctorPatientsController {
         SceneRouter.go("doctor-message-view.fxml", "Send Message");
     }
 
+    private void onReferHospital(PatientProfile patient) {
+        firebaseService.getAllHospitals()
+                .thenAccept(hospitals -> Platform.runLater(() -> openReferralDialog(patient, hospitals)))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showStatus("Failed to load hospitals: " + cleanErrorMessage(e), true));
+                    return null;
+                });
+    }
+
+    private void openReferralDialog(PatientProfile patient, List<HospitalProfile> hospitals) {
+        if (patient == null) {
+            showStatus("Patient is required for hospital referral.", true);
+            return;
+        }
+        if (hospitals == null || hospitals.isEmpty()) {
+            showStatus("No hospital accounts are available for referral yet.", true);
+            return;
+        }
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Refer to Hospital");
+        dialog.setHeaderText("Create a hospital referral for " + fallback(patient.getName()));
+
+        ButtonType createType = new ButtonType("Create Referral", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createType, ButtonType.CANCEL);
+
+        ComboBox<HospitalProfile> hospitalComboBox = new ComboBox<>();
+        hospitalComboBox.getItems().addAll(hospitals);
+        hospitalComboBox.setMaxWidth(Double.MAX_VALUE);
+        hospitalComboBox.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(HospitalProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : hospitalLabel(item));
+            }
+        });
+        hospitalComboBox.setButtonCell(new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(HospitalProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : hospitalLabel(item));
+            }
+        });
+        hospitalComboBox.getSelectionModel().selectFirst();
+
+        ComboBox<String> serviceComboBox = new ComboBox<>();
+        serviceComboBox.getItems().addAll("Surgery", "Diagnostic Scan", "Lab Testing", "Specialist Procedure", "Follow-up Evaluation");
+        serviceComboBox.setEditable(true);
+        serviceComboBox.setValue("Diagnostic Scan");
+        serviceComboBox.setMaxWidth(Double.MAX_VALUE);
+
+        DatePicker referralDatePicker = new DatePicker(LocalDate.now().plusDays(1));
+        ComboBox<String> timeComboBox = new ComboBox<>();
+        timeComboBox.getItems().addAll(
+                "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
+                "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"
+        );
+        timeComboBox.setEditable(true);
+        timeComboBox.setValue("09:00 AM");
+        timeComboBox.setMaxWidth(Double.MAX_VALUE);
+
+        TextArea referralNotesArea = new TextArea();
+        referralNotesArea.setPromptText("Why is the patient being referred? Include context the hospital should know.");
+        referralNotesArea.setWrapText(true);
+        referralNotesArea.setPrefRowCount(5);
+
+        VBox content = new VBox(10,
+                new Label("Hospital"),
+                hospitalComboBox,
+                new Label("Service / referral type"),
+                serviceComboBox,
+                new Label("Appointment date"),
+                referralDatePicker,
+                new Label("Appointment time"),
+                timeComboBox,
+                new Label("Referral notes"),
+                referralNotesArea
+        );
+        content.setPrefWidth(420);
+        dialog.getDialogPane().setContent(content);
+
+        ButtonType result = dialog.showAndWait().orElse(ButtonType.CANCEL);
+        if (result != createType) {
+            return;
+        }
+
+        HospitalProfile selectedHospital = hospitalComboBox.getValue();
+        String serviceType = serviceComboBox.getEditor() != null && !serviceComboBox.getEditor().getText().isBlank()
+                ? serviceComboBox.getEditor().getText().trim()
+                : serviceComboBox.getValue();
+        LocalDate date = referralDatePicker.getValue();
+        String time = timeComboBox.getEditor() != null && !timeComboBox.getEditor().getText().isBlank()
+                ? timeComboBox.getEditor().getText().trim()
+                : timeComboBox.getValue();
+        String referralNotes = referralNotesArea.getText() == null ? "" : referralNotesArea.getText().trim();
+
+        if (selectedHospital == null) {
+            showStatus("Please choose a hospital for the referral.", true);
+            return;
+        }
+        if (serviceType == null || serviceType.isBlank()) {
+            showStatus("Please enter the service the hospital should provide.", true);
+            return;
+        }
+        if (date == null) {
+            showStatus("Please choose a referral date.", true);
+            return;
+        }
+        if (time == null || time.isBlank()) {
+            showStatus("Please choose a referral time.", true);
+            return;
+        }
+
+        createHospitalReferral(patient, selectedHospital, serviceType, date, time, referralNotes);
+    }
+
+    private void createHospitalReferral(PatientProfile patient,
+                                        HospitalProfile hospital,
+                                        String serviceType,
+                                        LocalDate date,
+                                        String time,
+                                        String referralNotes) {
+        LocalTime localTime;
+        try {
+            localTime = LocalTime.parse(time.trim().toUpperCase(Locale.ENGLISH), REFERRAL_TIME_FORMAT);
+        } catch (Exception ex) {
+            showStatus("Referral time must look like 9:00 AM.", true);
+            return;
+        }
+
+        long appointmentEpoch = LocalDateTime.of(date, localTime)
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
+
+        Appointment appointment = new Appointment(
+                patient.getUid(),
+                userContext.getUid(),
+                patient.getName(),
+                userContext.getName(),
+                appointmentEpoch
+        );
+        appointment.setAppointmentDate(date.toString());
+        appointment.setAppointmentSlot(time.trim().toUpperCase(Locale.ENGLISH));
+        appointment.setAppointmentTime(date + " " + appointment.getAppointmentSlot());
+        appointment.setStatus("SCHEDULED");
+        appointment.setReason(serviceType);
+        appointment.setReferralType(serviceType);
+        appointment.setNotes(referralNotes);
+        appointment.setReferralNotes(referralNotes);
+        appointment.setHospitalUid(hospital.getUid());
+        appointment.setHospitalName(hospital.getHospitalName());
+        appointment.setHospitalDepartment(serviceType);
+        appointment.setNewPatient(false);
+
+        firebaseService.createHospitalReferralAppointment(appointment)
+                .thenAccept(appointmentId -> Platform.runLater(() -> {
+                    firebaseService.notifyPatient(
+                            patient.getUid(),
+                            "Hospital Referral Scheduled",
+                            "Dr. " + userContext.getName() + " referred you to "
+                                    + fallback(hospital.getHospitalName()) + " for " + serviceType
+                                    + " on " + date + " at " + appointment.getAppointmentSlot() + ".",
+                            "HOSPITAL_REFERRAL",
+                            appointmentId
+                    );
+                    showStatus("Hospital referral scheduled successfully.", false);
+                    loadPatients();
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showStatus("Failed to create referral: " + cleanErrorMessage(e), true));
+                    return null;
+                });
+    }
+
     @FXML
     private void onBack() {
         SceneRouter.go("doctor-dashboard-view.fxml", "Doctor Dashboard");
@@ -155,5 +351,13 @@ public class DoctorPatientsController {
 
     private String fallback(String value) {
         return value == null || value.isBlank() ? "Not provided" : value;
+    }
+
+    private String hospitalLabel(HospitalProfile hospital) {
+        return fallback(hospital.getHospitalName())
+                + " • "
+                + fallback(hospital.getCity())
+                + ", "
+                + fallback(hospital.getState());
     }
 }

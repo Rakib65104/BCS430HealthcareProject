@@ -4,6 +4,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+import javafx.application.Platform;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -48,20 +49,29 @@ public class HospitalDashboardController {
     }
 
     private void loadDashboardData(String hospitalUid) {
-        try {
-            List<Doctor> hospitalDoctors = getDoctorsForHospital(hospitalUid);
-            List<Appointment> hospitalAppointments = getAppointmentsForHospitalDoctors(hospitalDoctors);
-            List<PatientProfile> hospitalPatients = getPatientsFromAppointments(hospitalAppointments);
-
-            updateStats(hospitalPatients, hospitalAppointments, hospitalDoctors);
-            loadPatientsPreview(hospitalPatients);
-            loadSchedulePreview(hospitalAppointments);
-
-        } catch (Exception e) {
-            System.err.println("Failed to load hospital dashboard data: " + e.getMessage());
-            e.printStackTrace();
-            loadEmptyState();
-        }
+        firebaseService.getAppointmentsForHospital(hospitalUid)
+                .thenCombine(firebaseService.getPatientsForHospital(hospitalUid), (appointments, patients) -> {
+                    List<Doctor> hospitalDoctors;
+                    try {
+                        hospitalDoctors = getDoctorsForHospital(hospitalUid);
+                    } catch (Exception e) {
+                        hospitalDoctors = new ArrayList<>();
+                    }
+                    return new DashboardData(
+                            appointments == null ? new ArrayList<>() : appointments,
+                            patients == null ? new ArrayList<>() : patients,
+                            hospitalDoctors
+                    );
+                })
+                .thenAccept(data -> Platform.runLater(() -> {
+                    updateStats(data.patients, data.appointments, data.doctors);
+                    loadPatientsPreview(data.patients);
+                    loadSchedulePreview(data.appointments);
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(this::loadEmptyState);
+                    return null;
+                });
     }
 
     private List<Doctor> getDoctorsForHospital(String hospitalUid) throws Exception {
@@ -81,65 +91,6 @@ public class HospitalDashboardController {
         }
 
         return hospitalDoctors;
-    }
-
-    private List<Appointment> getAppointmentsForHospitalDoctors(List<Doctor> hospitalDoctors) throws Exception {
-        List<Appointment> appointments = new ArrayList<>();
-
-        if (hospitalDoctors == null) {
-            return appointments;
-        }
-
-        for (Doctor doctor : hospitalDoctors) {
-            if (doctor == null || doctor.getUid() == null || doctor.getUid().isBlank()) {
-                continue;
-            }
-
-            List<Appointment> doctorAppointments = firebaseService.getDoctorAppointments(doctor.getUid()).get();
-
-            if (doctorAppointments != null) {
-                appointments.addAll(doctorAppointments);
-            }
-        }
-
-        appointments.sort((a, b) -> Long.compare(
-                a.getAppointmentDateTime() != null ? a.getAppointmentDateTime() : Long.MAX_VALUE,
-                b.getAppointmentDateTime() != null ? b.getAppointmentDateTime() : Long.MAX_VALUE
-        ));
-
-        return appointments;
-    }
-
-    private List<PatientProfile> getPatientsFromAppointments(List<Appointment> appointments) {
-        Map<String, PatientProfile> uniquePatients = new HashMap<>();
-
-        if (appointments == null) {
-            return new ArrayList<>();
-        }
-
-        for (Appointment appointment : appointments) {
-            if (appointment == null || appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
-                continue;
-            }
-
-            String patientUid = appointment.getPatientUid();
-
-            if (uniquePatients.containsKey(patientUid)) {
-                continue;
-            }
-
-            try {
-                PatientProfile patient = firebaseService.getPatientProfile(patientUid).get();
-                if (patient != null) {
-                    uniquePatients.put(patientUid, patient);
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        List<PatientProfile> patients = new ArrayList<>(uniquePatients.values());
-        patients.sort((a, b) -> valueOrDefault(a.getName(), "").compareToIgnoreCase(valueOrDefault(b.getName(), "")));
-        return patients;
     }
 
     private void updateStats(List<PatientProfile> patients, List<Appointment> appointments, List<Doctor> hospitalDoctors) {
@@ -356,5 +307,17 @@ public class HospitalDashboardController {
 
     private String valueOrDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private static class DashboardData {
+        private final List<Appointment> appointments;
+        private final List<PatientProfile> patients;
+        private final List<Doctor> doctors;
+
+        private DashboardData(List<Appointment> appointments, List<PatientProfile> patients, List<Doctor> doctors) {
+            this.appointments = appointments;
+            this.patients = patients;
+            this.doctors = doctors;
+        }
     }
 }

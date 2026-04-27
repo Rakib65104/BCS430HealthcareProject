@@ -8,9 +8,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class HospitalPatientsController {
 
@@ -31,12 +29,16 @@ public class HospitalPatientsController {
     private void loadPatients() {
         try {
             HospitalProfile hospital = userContext.getHospitalProfile();
+
             if (hospital == null) {
                 showEmpty("No hospital is currently loaded.");
                 return;
             }
 
-            allPatients = firebaseService.getPatientsForHospital(hospital.getUid()).get();
+            List<Doctor> hospitalDoctors = getDoctorsForHospital(hospital.getUid());
+            List<Appointment> hospitalAppointments = getAppointmentsForHospitalDoctors(hospitalDoctors);
+            allPatients = getPatientsFromAppointments(hospitalAppointments);
+
             renderPatients(allPatients);
 
         } catch (Exception e) {
@@ -46,11 +48,73 @@ public class HospitalPatientsController {
         }
     }
 
+    private List<Doctor> getDoctorsForHospital(String hospitalUid) throws Exception {
+        List<Doctor> allDoctors = firebaseService.getAllDoctors().get();
+        List<Doctor> hospitalDoctors = new ArrayList<>();
+
+        if (allDoctors == null) return hospitalDoctors;
+
+        for (Doctor doctor : allDoctors) {
+            if (doctor != null
+                    && doctor.getHospitalUid() != null
+                    && doctor.getHospitalUid().equals(hospitalUid)) {
+                hospitalDoctors.add(doctor);
+            }
+        }
+
+        return hospitalDoctors;
+    }
+
+    private List<Appointment> getAppointmentsForHospitalDoctors(List<Doctor> hospitalDoctors) throws Exception {
+        List<Appointment> appointments = new ArrayList<>();
+
+        if (hospitalDoctors == null) return appointments;
+
+        for (Doctor doctor : hospitalDoctors) {
+            if (doctor == null || doctor.getUid() == null) continue;
+
+            List<Appointment> doctorAppointments = firebaseService.getDoctorAppointments(doctor.getUid()).get();
+
+            if (doctorAppointments != null) {
+                appointments.addAll(doctorAppointments);
+            }
+        }
+
+        return appointments;
+    }
+
+    private List<PatientProfile> getPatientsFromAppointments(List<Appointment> appointments) {
+        Map<String, PatientProfile> uniquePatients = new HashMap<>();
+
+        if (appointments == null) return new ArrayList<>();
+
+        for (Appointment appointment : appointments) {
+            if (appointment == null || appointment.getPatientUid() == null) continue;
+
+            if (uniquePatients.containsKey(appointment.getPatientUid())) {
+                continue;
+            }
+
+            try {
+                PatientProfile patient = firebaseService.getPatientProfile(appointment.getPatientUid()).get();
+
+                if (patient != null) {
+                    uniquePatients.put(appointment.getPatientUid(), patient);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        List<PatientProfile> patients = new ArrayList<>(uniquePatients.values());
+        patients.sort((a, b) -> valueOrDefault(a.getName(), "").compareToIgnoreCase(valueOrDefault(b.getName(), "")));
+        return patients;
+    }
+
     private void renderPatients(List<PatientProfile> patients) {
         patientsListVBox.getChildren().clear();
 
         if (patients == null || patients.isEmpty()) {
-            showEmpty("No patients found.");
+            showEmpty("No patients booked with this hospital yet.");
             return;
         }
 
@@ -106,12 +170,7 @@ public class HospitalPatientsController {
 
         VBox card = new VBox();
         card.setPadding(new Insets(14));
-        card.setStyle(
-                "-fx-background-color: #F8FAFC;" +
-                        "-fx-background-radius: 12;" +
-                        "-fx-border-color: #E2E8F0;" +
-                        "-fx-border-radius: 12;"
-        );
+        card.setStyle("-fx-background-color: #F8FAFC; -fx-background-radius: 12; -fx-border-color: #E2E8F0; -fx-border-radius: 12;");
 
         Label label = new Label(text);
         label.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
@@ -130,6 +189,7 @@ public class HospitalPatientsController {
         }
 
         List<PatientProfile> filtered = new ArrayList<>();
+
         for (PatientProfile patient : allPatients) {
             String name = valueOrDefault(patient.getName(), "").toLowerCase(Locale.ROOT);
             String email = valueOrDefault(patient.getEmail(), "").toLowerCase(Locale.ROOT);
@@ -142,31 +202,11 @@ public class HospitalPatientsController {
         renderPatients(filtered);
     }
 
-    @FXML
-    private void onClear() {
-        searchField.clear();
-        renderPatients(allPatients);
-    }
-
-    @FXML
-    private void onDashboard() {
-        SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard");
-    }
-
-    @FXML
-    private void onPatients() {
-        // current page
-    }
-
-    @FXML
-    private void onSchedule() {
-        SceneRouter.go("hospital-schedule-view.fxml", "Hospital Schedule");
-    }
-
-    @FXML
-    private void onProfile() {
-        SceneRouter.go("hospital-profile-view.fxml", "Hospital Profile");
-    }
+    @FXML private void onClear() { searchField.clear(); renderPatients(allPatients); }
+    @FXML private void onDashboard() { SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard"); }
+    @FXML private void onPatients() {}
+    @FXML private void onSchedule() { SceneRouter.go("hospital-schedule-view.fxml", "Hospital Schedule"); }
+    @FXML private void onProfile() { SceneRouter.go("hospital-profile-view.fxml", "Hospital Profile"); }
 
     @FXML
     private void onLogout() {
@@ -183,18 +223,10 @@ public class HospitalPatientsController {
     }
 
     private String safeGetDateOfBirth(PatientProfile patient) {
-        try {
-            return patient.getDateOfBirth();
-        } catch (Exception e) {
-            return "";
-        }
+        try { return patient.getDateOfBirth(); } catch (Exception e) { return ""; }
     }
 
     private String safeGetGender(PatientProfile patient) {
-        try {
-            return patient.getGender();
-        } catch (Exception e) {
-            return "";
-        }
+        try { return patient.getGender(); } catch (Exception e) { return ""; }
     }
 }

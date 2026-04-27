@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
 
 public class HospitalDashboardController {
 
@@ -37,12 +37,8 @@ public class HospitalDashboardController {
         HospitalProfile profile = userContext.getHospitalProfile();
 
         if (profile != null) {
-            String hospitalName = valueOrDefault(profile.getHospitalName(), "Hospital");
-            String fullAddress = valueOrDefault(profile.getFullAddress(), "Manage patients and appointments.");
-
-            setLabelText(welcomeLabel, "Welcome, " + hospitalName);
-            setLabelText(hospitalInfoLabel, fullAddress);
-
+            setLabelText(welcomeLabel, "Welcome, " + valueOrDefault(profile.getHospitalName(), "Hospital"));
+            setLabelText(hospitalInfoLabel, valueOrDefault(profile.getFullAddress(), "Manage patients and appointments."));
             loadDashboardData(profile.getUid());
         } else {
             setLabelText(welcomeLabel, "Welcome, Hospital");
@@ -53,12 +49,13 @@ public class HospitalDashboardController {
 
     private void loadDashboardData(String hospitalUid) {
         try {
-            List<PatientProfile> patients = firebaseService.getPatientsForHospital(hospitalUid).get();
-            List<Appointment> appointments = firebaseService.getAppointmentsForHospital(hospitalUid).get();
+            List<Doctor> hospitalDoctors = getDoctorsForHospital(hospitalUid);
+            List<Appointment> hospitalAppointments = getAppointmentsForHospitalDoctors(hospitalDoctors);
+            List<PatientProfile> hospitalPatients = getPatientsFromAppointments(hospitalAppointments);
 
-            updateStats(patients, appointments);
-            loadPatientsPreview(patients);
-            loadSchedulePreview(appointments);
+            updateStats(hospitalPatients, hospitalAppointments, hospitalDoctors);
+            loadPatientsPreview(hospitalPatients);
+            loadSchedulePreview(hospitalAppointments);
 
         } catch (Exception e) {
             System.err.println("Failed to load hospital dashboard data: " + e.getMessage());
@@ -67,28 +64,125 @@ public class HospitalDashboardController {
         }
     }
 
-    private void updateStats(List<PatientProfile> patients, List<Appointment> appointments) {
+    private List<Doctor> getDoctorsForHospital(String hospitalUid) throws Exception {
+        List<Doctor> allDoctors = firebaseService.getAllDoctors().get();
+        List<Doctor> hospitalDoctors = new ArrayList<>();
+
+        if (allDoctors == null) {
+            return hospitalDoctors;
+        }
+
+        for (Doctor doctor : allDoctors) {
+            if (doctor != null
+                    && doctor.getHospitalUid() != null
+                    && doctor.getHospitalUid().equals(hospitalUid)) {
+                hospitalDoctors.add(doctor);
+            }
+        }
+
+        return hospitalDoctors;
+    }
+
+    private List<Appointment> getAppointmentsForHospitalDoctors(List<Doctor> hospitalDoctors) throws Exception {
+        List<Appointment> appointments = new ArrayList<>();
+
+        if (hospitalDoctors == null) {
+            return appointments;
+        }
+
+        for (Doctor doctor : hospitalDoctors) {
+            if (doctor == null || doctor.getUid() == null || doctor.getUid().isBlank()) {
+                continue;
+            }
+
+            List<Appointment> doctorAppointments = firebaseService.getDoctorAppointments(doctor.getUid()).get();
+
+            if (doctorAppointments != null) {
+                appointments.addAll(doctorAppointments);
+            }
+        }
+
+        appointments.sort((a, b) -> Long.compare(
+                a.getAppointmentDateTime() != null ? a.getAppointmentDateTime() : Long.MAX_VALUE,
+                b.getAppointmentDateTime() != null ? b.getAppointmentDateTime() : Long.MAX_VALUE
+        ));
+
+        return appointments;
+    }
+
+    private List<PatientProfile> getPatientsFromAppointments(List<Appointment> appointments) {
+        Map<String, PatientProfile> uniquePatients = new HashMap<>();
+
+        if (appointments == null) {
+            return new ArrayList<>();
+        }
+
+        for (Appointment appointment : appointments) {
+            if (appointment == null || appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
+                continue;
+            }
+
+            String patientUid = appointment.getPatientUid();
+
+            if (uniquePatients.containsKey(patientUid)) {
+                continue;
+            }
+
+            try {
+                PatientProfile patient = firebaseService.getPatientProfile(patientUid).get();
+                if (patient != null) {
+                    uniquePatients.put(patientUid, patient);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        List<PatientProfile> patients = new ArrayList<>(uniquePatients.values());
+        patients.sort((a, b) -> valueOrDefault(a.getName(), "").compareToIgnoreCase(valueOrDefault(b.getName(), "")));
+        return patients;
+    }
+
+    private void updateStats(List<PatientProfile> patients, List<Appointment> appointments, List<Doctor> hospitalDoctors) {
         setLabelText(totalPatientsLabel, String.valueOf(patients != null ? patients.size() : 0));
 
         int todayCount = 0;
+
         if (appointments != null) {
             for (Appointment appointment : appointments) {
-                if (appointment != null && isToday(appointment)) {
+                if (appointment != null && isToday(appointment) && !isCancelled(appointment)) {
                     todayCount++;
                 }
             }
         }
 
         setLabelText(appointmentsTodayLabel, String.valueOf(todayCount));
+        setLabelText(departmentsLabel, String.valueOf(countRealDepartments(hospitalDoctors)));
+    }
 
-        // You removed departments support, so keep this simple for now
-        setLabelText(departmentsLabel, "—");
+    private int countRealDepartments(List<Doctor> hospitalDoctors) {
+        Set<String> departments = new HashSet<>();
+
+        if (hospitalDoctors == null) {
+            return 0;
+        }
+
+        for (Doctor doctor : hospitalDoctors) {
+            if (doctor == null) {
+                continue;
+            }
+
+            String department = doctor.getDepartment();
+
+            if (department != null && !department.isBlank()) {
+                departments.add(department.trim().toLowerCase());
+            }
+        }
+
+        return departments.size();
     }
 
     private void loadPatientsPreview(List<PatientProfile> patients) {
-        if (patientsListVBox == null) {
-            return;
-        }
+        if (patientsListVBox == null) return;
 
         patientsListVBox.getChildren().clear();
 
@@ -99,15 +193,12 @@ public class HospitalDashboardController {
 
         int limit = Math.min(5, patients.size());
         for (int i = 0; i < limit; i++) {
-            PatientProfile patient = patients.get(i);
-            patientsListVBox.getChildren().add(buildPatientCard(patient));
+            patientsListVBox.getChildren().add(buildPatientCard(patients.get(i)));
         }
     }
 
     private void loadSchedulePreview(List<Appointment> appointments) {
-        if (scheduleListVBox == null) {
-            return;
-        }
+        if (scheduleListVBox == null) return;
 
         scheduleListVBox.getChildren().clear();
 
@@ -117,29 +208,27 @@ public class HospitalDashboardController {
         }
 
         int shown = 0;
+
         for (Appointment appointment : appointments) {
-            if (appointment == null) {
+            if (appointment == null || isCancelled(appointment)) {
                 continue;
             }
 
             scheduleListVBox.getChildren().add(buildAppointmentCard(appointment));
             shown++;
 
-            if (shown >= 5) {
-                break;
-            }
+            if (shown >= 5) break;
+        }
+
+        if (shown == 0) {
+            scheduleListVBox.getChildren().add(buildEmptyCard("No active appointments scheduled."));
         }
     }
 
     private VBox buildPatientCard(PatientProfile patient) {
         VBox card = new VBox(4);
         card.setPadding(new Insets(12));
-        card.setStyle(
-                "-fx-background-color: #F8FAFC;" +
-                        "-fx-background-radius: 12;" +
-                        "-fx-border-color: #D1FAE5;" +
-                        "-fx-border-radius: 12;"
-        );
+        card.setStyle("-fx-background-color: #F8FAFC; -fx-background-radius: 12; -fx-border-color: #D1FAE5; -fx-border-radius: 12;");
 
         Label nameLabel = new Label(valueOrDefault(patient.getName(), "Unnamed Patient"));
         nameLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;");
@@ -157,24 +246,15 @@ public class HospitalDashboardController {
     private VBox buildAppointmentCard(Appointment appointment) {
         VBox card = new VBox(6);
         card.setPadding(new Insets(12));
-        card.setStyle(
-                "-fx-background-color: #ECFDF5;" +
-                        "-fx-background-radius: 12;" +
-                        "-fx-border-color: #A7F3D0;" +
-                        "-fx-border-radius: 12;"
-        );
+        card.setStyle("-fx-background-color: #ECFDF5; -fx-background-radius: 12; -fx-border-color: #A7F3D0; -fx-border-radius: 12;");
 
-        String patientName = valueOrDefault(appointment.getPatientName(), "Unknown Patient");
-        String status = valueOrDefault(appointment.getStatus(), "SCHEDULED");
-        String timeText = formatAppointmentTime(appointment);
-
-        Label patientLabel = new Label(patientName);
+        Label patientLabel = new Label(valueOrDefault(appointment.getPatientName(), "Unknown Patient"));
         patientLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;");
 
-        Label timeLabel = new Label(timeText);
+        Label timeLabel = new Label(formatAppointmentTime(appointment));
         timeLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12;");
 
-        Label statusLabel = new Label(status);
+        Label statusLabel = new Label(valueOrDefault(appointment.getStatus(), "SCHEDULED"));
         statusLabel.setStyle("-fx-text-fill: #166534; -fx-font-size: 11; -fx-font-weight: bold;");
 
         card.getChildren().addAll(patientLabel, timeLabel, statusLabel);
@@ -184,23 +264,19 @@ public class HospitalDashboardController {
     private VBox buildEmptyCard(String text) {
         VBox box = new VBox();
         box.setPadding(new Insets(14));
-        box.setStyle(
-                "-fx-background-color: #F8FAFC;" +
-                        "-fx-background-radius: 12;" +
-                        "-fx-border-color: #E2E8F0;" +
-                        "-fx-border-radius: 12;"
-        );
+        box.setStyle("-fx-background-color: #F8FAFC; -fx-background-radius: 12; -fx-border-color: #E2E8F0; -fx-border-radius: 12;");
 
         Label label = new Label(text);
         label.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
-
         box.getChildren().add(label);
+
         return box;
     }
 
     private String formatAppointmentTime(Appointment appointment) {
         try {
             Long millis = appointment.getAppointmentDateTime();
+
             if (millis == null) {
                 return valueOrDefault(appointment.getAppointmentTime(), "Time not available");
             }
@@ -216,9 +292,7 @@ public class HospitalDashboardController {
     private boolean isToday(Appointment appointment) {
         try {
             Long millis = appointment.getAppointmentDateTime();
-            if (millis == null) {
-                return false;
-            }
+            if (millis == null) return false;
 
             LocalDate appointmentDate = Instant.ofEpochMilli(millis)
                     .atZone(ZoneId.systemDefault())
@@ -230,10 +304,14 @@ public class HospitalDashboardController {
         }
     }
 
+    private boolean isCancelled(Appointment appointment) {
+        return appointment.getStatus() != null && appointment.getStatus().equalsIgnoreCase("CANCELLED");
+    }
+
     private void loadEmptyState() {
         setLabelText(totalPatientsLabel, "0");
         setLabelText(appointmentsTodayLabel, "0");
-        setLabelText(departmentsLabel, "—");
+        setLabelText(departmentsLabel, "0");
 
         if (patientsListVBox != null) {
             patientsListVBox.getChildren().clear();
@@ -257,6 +335,11 @@ public class HospitalDashboardController {
     }
 
     @FXML
+    private void onDepartments() {
+        SceneRouter.go("hospital-departments-view.fxml", "Hospital Departments");
+    }
+
+    @FXML
     private void onProfile() {
         SceneRouter.go("hospital-profile-view.fxml", "Hospital Profile");
     }
@@ -268,9 +351,7 @@ public class HospitalDashboardController {
     }
 
     private void setLabelText(Label label, String text) {
-        if (label != null) {
-            label.setText(text);
-        }
+        if (label != null) label.setText(text);
     }
 
     private String valueOrDefault(String value, String fallback) {

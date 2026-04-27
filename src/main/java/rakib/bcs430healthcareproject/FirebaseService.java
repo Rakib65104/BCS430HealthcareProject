@@ -44,6 +44,7 @@ public class FirebaseService {
     private static final String PRESCRIPTIONS_COLLECTION = "prescriptions";
     private static final String MESSAGES_COLLECTION = "messages";
     private static final String NOTIFICATIONS_COLLECTION = "notifications";
+    private static final String HOSPITAL_DEPARTMENTS_COLLECTION = "hospitalDepartments";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
@@ -751,9 +752,9 @@ public class FirebaseService {
 
                 if (doctors.isEmpty()) {
                     Doctor testDoctor = new Doctor();
-                    testDoctor.setUid("test123");
-                    testDoctor.setName("Dr. Test");
-                    testDoctor.setSpecialty("General Medicine");
+                    testDoctor.setHospitalUid("");
+                    testDoctor.setHospitalName("");
+                    testDoctor.setDepartment("General Medicine");
                     testDoctor.setZip("10001");
                     testDoctor.setClinicName("Test Clinic");
                     testDoctor.setCity("New York");
@@ -795,31 +796,41 @@ public class FirebaseService {
 
     private Doctor mapDoctorDocument(DocumentSnapshot doc) {
         Doctor doctor = new Doctor();
+
         doctor.setUid(doc.getId());
         doctor.setName(doc.getString("name"));
         doctor.setEmail(doc.getString("email"));
         doctor.setSpecialty(doc.getString("specialty"));
         doctor.setZip(doc.getString("zip"));
         doctor.setClinicName(doc.getString("clinicName"));
+
+        doctor.setHospitalUid(doc.getString("hospitalUid"));
+        doctor.setHospitalName(doc.getString("hospitalName"));
+        doctor.setDepartment(doc.getString("department"));
+
         doctor.setCity(doc.getString("city"));
         doctor.setState(doc.getString("state"));
         doctor.setAddress(doc.getString("address"));
         doctor.setPhone(doc.getString("phone"));
         doctor.setAcceptingNewPatients(doc.getBoolean("acceptingNewPatients"));
+
         doctor.setHours(doc.getString("hours"));
         doctor.setInsuranceInfo(doc.getString("insuranceInfo"));
         doctor.setBio(doc.getString("bio"));
+        doctor.setLicenseNumber(doc.getString("licenseNumber"));
         doctor.setVisitType(doc.getString("visitType"));
         doctor.setNotes(doc.getString("notes"));
 
         Object availabilityObj = doc.get("availability");
         if (availabilityObj instanceof Map<?, ?> rawMap) {
             Map<String, String> availability = new HashMap<>();
+
             for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
                 if (entry.getKey() != null && entry.getValue() != null) {
                     availability.put(entry.getKey().toString(), entry.getValue().toString());
                 }
             }
+
             doctor.setAvailability(availability);
         }
 
@@ -915,9 +926,11 @@ public class FirebaseService {
                     }
 
                     String status = appointment.getStatus();
-                    if (status == null || !status.equalsIgnoreCase("CANCELLED")) {
-                        return false;
+                    if (status != null && status.equalsIgnoreCase("CANCELLED")) {
+                        continue;
                     }
+
+                    return false;
                 }
 
                 return true;
@@ -943,8 +956,8 @@ public class FirebaseService {
                 for (Appointment appointment : appointments) {
                     if (appointment.getAppointmentDateTime() != null
                             && appointment.getAppointmentDateTime().longValue() == appointmentDateTime
-                            && appointment.getStatus() != null
-                            && !appointment.getStatus().equalsIgnoreCase("CANCELLED")) {
+                            && (appointment.getStatus() == null
+                            || !appointment.getStatus().equalsIgnoreCase("CANCELLED"))) {
                         return false;
                     }
                 }
@@ -1579,6 +1592,27 @@ public class FirebaseService {
         });
     }
 
+    public CompletableFuture<List<Prescription>> getPatientPrescriptionsForDoctor(String patientUid, String doctorUid) {
+        return getPatientPrescriptions(patientUid)
+                .thenApply(prescriptions -> {
+                    List<Prescription> filtered = new ArrayList<>();
+                    if (prescriptions == null) {
+                        return filtered;
+                    }
+
+                    for (Prescription prescription : prescriptions) {
+                        if (prescription == null) {
+                            continue;
+                        }
+                        if (doctorUid == null || doctorUid.isBlank()
+                                || doctorUid.equals(prescription.getDoctorUid())) {
+                            filtered.add(prescription);
+                        }
+                    }
+                    return filtered;
+                });
+    }
+
     public CompletableFuture<List<Prescription>> getAllPrescriptions() {
         return CompletableFuture.supplyAsync(() -> {
             List<Prescription> prescriptions = new ArrayList<>();
@@ -1836,6 +1870,24 @@ public class FirebaseService {
         });
     }
 
+    public CompletableFuture<Void> deleteAppointment(String appointmentId) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (appointmentId == null || appointmentId.isBlank()) {
+                    throw new RuntimeException("Appointment ID is required for deletion");
+                }
+
+                firestore.collection(APPOINTMENTS_COLLECTION)
+                        .document(appointmentId)
+                        .delete()
+                        .get();
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to delete appointment: " + e.getMessage(), e);
+            }
+        });
+    }
+
     /**
      * Creates a notification document.
      */
@@ -1986,7 +2038,94 @@ public class FirebaseService {
 
         createNotification(notification);
     }
+    public CompletableFuture<String> addHospitalDepartment(HospitalDepartment department) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (department == null) {
+                    throw new RuntimeException("Department cannot be null.");
+                }
 
+                if (department.getHospitalUid() == null || department.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital ID is required.");
+                }
+
+                if (department.getName() == null || department.getName().isBlank()) {
+                    throw new RuntimeException("Department name is required.");
+                }
+
+                String departmentId = firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .document()
+                        .getId();
+
+                department.setDepartmentId(departmentId);
+
+                firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .document(departmentId)
+                        .set(department)
+                        .get();
+
+                return departmentId;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to add hospital department: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<List<HospitalDepartment>> getDepartmentsForHospital(String hospitalUid) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<HospitalDepartment> departments = new ArrayList<>();
+
+            try {
+                if (hospitalUid == null || hospitalUid.isBlank()) {
+                    return departments;
+                }
+
+                QuerySnapshot snapshot = firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .whereEqualTo("hospitalUid", hospitalUid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    HospitalDepartment department = doc.toObject(HospitalDepartment.class);
+
+                    if (department != null) {
+                        department.setDepartmentId(doc.getId());
+                        departments.add(department);
+                    }
+                }
+
+                departments.sort((left, right) -> {
+                    String leftName = left.getName() != null ? left.getName() : "";
+                    String rightName = right.getName() != null ? right.getName() : "";
+                    return leftName.compareToIgnoreCase(rightName);
+                });
+
+                return departments;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve hospital departments: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<Void> deleteHospitalDepartment(String departmentId) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (departmentId == null || departmentId.isBlank()) {
+                    throw new RuntimeException("Department ID is required.");
+                }
+
+                firestore.collection(HOSPITAL_DEPARTMENTS_COLLECTION)
+                        .document(departmentId)
+                        .delete()
+                        .get();
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to delete hospital department: " + e.getMessage(), e);
+            }
+        });
+    }
     /**
      * Handles Firebase Authentication exceptions and returns user-friendly error messages.
      */

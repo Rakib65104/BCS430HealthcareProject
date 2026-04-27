@@ -32,6 +32,10 @@
                         onAction="#onSchedule"
                         style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold; -fx-cursor: hand;" />
 
+                <Button text="Departments"
+                        onAction="#onDepartments"
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold; -fx-cursor: hand;" />
+
                 <Button text="Profile"
                         onAction="#onProfile"
                         style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold; -fx-cursor: hand;" />
@@ -78,8 +82,11 @@
                     <Label text="Departments"
                            style="-fx-text-fill: #64748B; -fx-font-size: 12; -fx-font-weight: bold;" />
                     <Label fx:id="departmentsLabel"
-                           text="—"
+                           text="Manage"
                            style="-fx-text-fill: #0F766E; -fx-font-size: 28; -fx-font-weight: bold;" />
+                    <Button text="Open"
+                            onAction="#onDepartments"
+                            style="-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 11; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;" />
                 </VBox>
             </HBox>
 

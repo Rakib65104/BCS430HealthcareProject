@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class HospitalDashboardController {
 
@@ -158,13 +159,17 @@ public class HospitalDashboardController {
             return;
         }
 
+        List<Appointment> upcomingAppointments = appointments.stream()
+                .filter(Objects::nonNull)
+                .filter(appointment -> !isCancelled(appointment))
+                .sorted(Comparator.comparing(
+                        Appointment::resolveAppointmentEpochMillis,
+                        Comparator.nullsLast(Long::compareTo)
+                ))
+                .collect(Collectors.toList());
+
         int shown = 0;
-
-        for (Appointment appointment : appointments) {
-            if (appointment == null || isCancelled(appointment)) {
-                continue;
-            }
-
+        for (Appointment appointment : upcomingAppointments) {
             scheduleListVBox.getChildren().add(buildAppointmentCard(appointment));
             shown++;
 
@@ -226,9 +231,12 @@ public class HospitalDashboardController {
 
     private String formatAppointmentTime(Appointment appointment) {
         try {
-            Long millis = appointment.getAppointmentDateTime();
+            Long millis = appointment.resolveAppointmentEpochMillis();
 
             if (millis == null) {
+                if (appointment.getAppointmentDate() != null && appointment.getAppointmentSlot() != null) {
+                    return appointment.getAppointmentDate() + " • " + appointment.getAppointmentSlot();
+                }
                 return valueOrDefault(appointment.getAppointmentTime(), "Time not available");
             }
 
@@ -242,7 +250,7 @@ public class HospitalDashboardController {
 
     private boolean isToday(Appointment appointment) {
         try {
-            Long millis = appointment.getAppointmentDateTime();
+            Long millis = appointment.resolveAppointmentEpochMillis();
             if (millis == null) return false;
 
             LocalDate appointmentDate = Instant.ofEpochMilli(millis)
@@ -288,6 +296,11 @@ public class HospitalDashboardController {
     @FXML
     private void onDepartments() {
         SceneRouter.go("hospital-departments-view.fxml", "Hospital Departments");
+    }
+
+    @FXML
+    private void onSendPrescription() {
+        SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients");
     }
 
     @FXML

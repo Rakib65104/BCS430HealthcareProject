@@ -17,7 +17,6 @@
             fx:controller="rakib.bcs430healthcareproject.LoginController"
             style="-fx-background-color:#F4F9F9;">
 
-    <!-- ===== Top Header (Same Style as Dashboard) ===== -->
     <top>
         <HBox style="-fx-background-color:#0F766E; -fx-padding:18 24; -fx-alignment:center-left;">
             <Label text="HealthConnect"
@@ -30,7 +29,6 @@
         </HBox>
     </top>
 
-    <!-- ===== Login Panel ===== -->
     <center>
         <StackPane>
             <VBox spacing="14"
@@ -47,17 +45,21 @@
                 <Label text="Log in to your account"
                        style="-fx-font-size:13; -fx-text-fill:#6B7280;"/>
 
-                <!-- Email -->
                 <VBox spacing="6">
-                    <Label text="Email"
-                           style="-fx-font-size:13; -fx-text-fill:#374151;"/>
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="Email (Username)"
+                               style="-fx-font-size:13; -fx-text-fill:#374151;"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Hyperlink text="Forgot username?"
+                                   onAction="#onForgotUsername"
+                                   style="-fx-font-size:12; -fx-text-fill:#0F766E; -fx-padding:0; -fx-border-width:0;"/>
+                    </HBox>
 
                     <TextField fx:id="emailField"
                                promptText="name@example.com"
                                style="-fx-background-radius:8; -fx-padding:8;"/>
                 </VBox>
 
-                <!-- Password -->
                 <VBox spacing="6">
                     <HBox alignment="CENTER_LEFT">
                         <Label text="Password"
@@ -73,14 +75,12 @@
                                    style="-fx-background-radius:8; -fx-padding:8;"/>
                 </VBox>
 
-                <!-- Error -->
                 <Label fx:id="errorLabel"
                        text=""
                        managed="false"
                        visible="false"
-                       style="-fx-text-fill:#DC2626; -fx-font-size:12;"/>
+                       style="-fx-text-fill:#DC2626; -fx-font-size:12; -fx-wrap-text:true;"/>
 
-                <!-- Login Button -->
                 <Button text="Log In"
                         onAction="#onLogin"
                         maxWidth="Infinity"
@@ -90,7 +90,6 @@
                                -fx-background-radius:8;
                                -fx-padding:10 16;"/>
 
-                <!-- Signup Link -->
                 <HBox spacing="6" alignment="CENTER">
                     <Label text="No account?"
                            style="-fx-text-fill:#6B7280;"/>

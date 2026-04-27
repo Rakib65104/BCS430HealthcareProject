@@ -55,21 +55,18 @@ public class HospitalLoginController {
         SceneRouter.go("hospital-auth-view.fxml", "Hospital Portal");
     }
 
-    private void showMessage(String message, boolean isError) {
-        errorLabel.setText(message);
-        errorLabel.setStyle(isError ? "-fx-text-fill:#DC2626;" : "-fx-text-fill:#0F766E;");
-        errorLabel.setManaged(true);
-        errorLabel.setVisible(true);
+    @FXML
+    private void onForgotUsername() {
+        // Because Firebase uses the email as the username, if they forgot it,
+        // they cannot trigger an automated reset without a secondary identifier.
+        showMessage("If you forgot your registered email/username, please contact IT support.", true);
     }
 
-    private String cleanErrorMessage(Throwable throwable) {
-        Throwable cause = throwable != null && throwable.getCause() != null ? throwable.getCause() : throwable;
-        return cause != null && cause.getMessage() != null ? cause.getMessage() : "Unknown error";
-    }
     @FXML
     private void onForgotPassword() {
         String email = emailField.getText() == null ? "" : emailField.getText().trim();
 
+        // Validate that an email is actually present before trying to send a reset link
         if (email.isEmpty() || !email.contains("@") || !email.contains(".")) {
             showMessage("Please enter your email in the email field to reset your password.", true);
             return;
@@ -77,6 +74,7 @@ public class HospitalLoginController {
 
         showMessage("Sending reset link...", false);
 
+        // Your controller correctly calls the service and handles the async response.
         firebaseService.sendPasswordResetEmail(email)
                 .thenAccept(v -> Platform.runLater(() ->
                         showMessage("Password reset email sent! Check your inbox.", false)
@@ -85,5 +83,18 @@ public class HospitalLoginController {
                     Platform.runLater(() -> showMessage(cleanErrorMessage(e), true));
                     return null;
                 });
+    }
+
+    private void showMessage(String message, boolean isError) {
+        errorLabel.setText(message);
+        // Uses red for errors, teal for success/loading info
+        errorLabel.setStyle(isError ? "-fx-text-fill:#DC2626;" : "-fx-text-fill:#0F766E;");
+        errorLabel.setManaged(true);
+        errorLabel.setVisible(true);
+    }
+
+    private String cleanErrorMessage(Throwable throwable) {
+        Throwable cause = throwable != null && throwable.getCause() != null ? throwable.getCause() : throwable;
+        return cause != null && cause.getMessage() != null ? cause.getMessage() : "Unknown error";
     }
 }

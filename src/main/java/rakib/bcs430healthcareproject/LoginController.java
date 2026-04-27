@@ -38,8 +38,11 @@ public class LoginController {
         }
 
         // Show loading status and disable button temporarily
-        showError("Logging in...");
-        
+        errorLabel.setText("Logging in...");
+        errorLabel.setStyle("-fx-text-fill: #0F766E;");
+        errorLabel.setManaged(true);
+        errorLabel.setVisible(true);
+
         // Authenticate user with Firebase
         firebaseService.authenticateAnyUser(email, pass)
                 .thenAccept(result -> {
@@ -76,12 +79,13 @@ public class LoginController {
                     return null;
                 });
     }
+
     @FXML
     private void onForgotPassword() {
         String email = emailField.getText() == null ? "" : emailField.getText().trim();
 
         if (email.isEmpty() || !email.contains("@") || !email.contains(".")) {
-            showError("Please enter your email in the email field to reset your password.");
+            showError("Please enter your registered email above to reset your password.");
             return;
         }
 
@@ -98,9 +102,18 @@ public class LoginController {
                     errorLabel.setStyle("-fx-text-fill: #16A34A;"); // Green color for success
                 }))
                 .exceptionally(e -> {
-                    Platform.runLater(() -> showError("Failed to send reset email: " + e.getMessage()));
+                    Platform.runLater(() -> showError("Failed to send reset email. Verify your email address."));
                     return null;
                 });
+    }
+
+    @FXML
+    private void onForgotUsername() {
+        // Firebase uses the email as the username. We display a helpful message.
+        errorLabel.setText("Your email is your username. If lost, please contact support.");
+        errorLabel.setStyle("-fx-text-fill: #0F766E;"); // Use theme color for info
+        errorLabel.setManaged(true);
+        errorLabel.setVisible(true);
     }
 
     @FXML

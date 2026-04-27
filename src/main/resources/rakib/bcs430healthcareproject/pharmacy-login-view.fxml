@@ -9,9 +9,9 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="rakib.bcs430healthcareproject.PharmacyLoginController"
             styleClass="root">
@@ -27,7 +27,13 @@
                 <Label text="Access prescriptions routed to your pharmacy location." styleClass="subtitle"/>
 
                 <VBox spacing="8">
-                    <Label text="Email" styleClass="label"/>
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="Email" styleClass="label"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Hyperlink text="Forgot username?"
+                                   onAction="#onForgotUsername"
+                                   style="-fx-font-size:12; -fx-text-fill:#0F766E; -fx-padding:0; -fx-border-width:0;"/>
+                    </HBox>
                     <TextField fx:id="emailField" promptText="pharmacy@example.com"/>
                 </VBox>
 

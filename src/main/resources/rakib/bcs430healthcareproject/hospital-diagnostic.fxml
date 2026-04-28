@@ -1,16 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.TextArea?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Priority?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
@@ -107,13 +99,29 @@
                     </VBox>
 
                     <VBox styleClass="card" spacing="12" style="-fx-padding:18;">
+                        <Label text="Report Title"
+                               style="-fx-text-fill:#0F766E; -fx-font-size:17; -fx-font-weight:bold;" />
+
+                        <TextField fx:id="reportTitleField"
+                                   promptText="Example: Chest CT Scan Report / Blood Panel Review"
+                                   style="-fx-font-size:13;" />
+
+                        <Label text="Report Type"
+                               style="-fx-text-fill:#0F766E; -fx-font-size:17; -fx-font-weight:bold;" />
+
+                        <ComboBox fx:id="reportTypeComboBox"
+                                  prefWidth="400"
+                                  style="-fx-font-size:13;" />
+                    </VBox>
+
+                    <VBox styleClass="card" spacing="12" style="-fx-padding:18;">
                         <Label text="Hospital Findings"
                                style="-fx-text-fill:#0F766E; -fx-font-size:17; -fx-font-weight:bold;" />
 
                         <TextArea fx:id="hospitalFindingsTextArea"
                                   prefHeight="130"
                                   wrapText="true"
-                                  promptText="Enter physician observations, lab notes, imaging notes, or hospital findings..."
+                                  promptText="Enter physician observations, imaging findings, notes, clinical findings..."
                                   style="-fx-font-size:13;" />
                     </VBox>
 
@@ -124,14 +132,14 @@
                         <TextArea fx:id="diagnosticResultsTextArea"
                                   prefHeight="180"
                                   wrapText="true"
-                                  promptText="Enter the final diagnostic results to be published to patient and physician..."
+                                  promptText="Enter the final diagnostic interpretation/results visible to patient and physician..."
                                   style="-fx-font-size:13;" />
                     </VBox>
 
                     <HBox spacing="12" alignment="CENTER_RIGHT">
                         <Region HBox.hgrow="ALWAYS"/>
 
-                        <Button text="Publish To Hub"
+                        <Button text="Publish To Shared Report Hub"
                                 fx:id="publishButton"
                                 onAction="#onPublishResults"
                                 style="-fx-background-color:#0F766E; -fx-text-fill:white; -fx-font-size:13; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:10 24; -fx-cursor:hand;" />

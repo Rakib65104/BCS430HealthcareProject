@@ -47,6 +47,7 @@ public class FirebaseService {
     private static final String MESSAGES_COLLECTION = "messages";
     private static final String NOTIFICATIONS_COLLECTION = "notifications";
     private static final String HOSPITAL_DEPARTMENTS_COLLECTION = "hospitalDepartments";
+    private static final String DIAGNOSTIC_REPORTS_COLLECTION = "diagnosticReports";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
@@ -1954,6 +1955,104 @@ public class FirebaseService {
             }
         });
     }
+    public CompletableFuture<String> saveDiagnosticReport(DiagnosticReport report) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (report == null) {
+                    throw new RuntimeException("Diagnostic report cannot be null.");
+                }
+                if (report.getPatientUid() == null || report.getPatientUid().isBlank()) {
+                    throw new RuntimeException("Patient ID is required.");
+                }
+                if (report.getDoctorUid() == null || report.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Doctor ID is required.");
+                }
+                if (report.getHospitalUid() == null || report.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital ID is required.");
+                }
+                if (report.getDiagnosticResults() == null || report.getDiagnosticResults().isBlank()) {
+                    throw new RuntimeException("Diagnostic results are required.");
+                }
+
+                String reportId = firestore.collection(DIAGNOSTIC_REPORTS_COLLECTION).document().getId();
+                report.setReportId(reportId);
+
+                if (report.getUploadedAt() == null) {
+                    report.setUploadedAt(System.currentTimeMillis());
+                }
+
+                if (report.getStatus() == null || report.getStatus().isBlank()) {
+                    report.setStatus("NEW");
+                }
+
+                if (report.getReportTitle() == null || report.getReportTitle().isBlank()) {
+                    report.setReportTitle("Hospital Diagnostic Report");
+                }
+
+                if (report.getReportType() == null || report.getReportType().isBlank()) {
+                    report.setReportType("Diagnostic Result");
+                }
+
+                firestore.collection(DIAGNOSTIC_REPORTS_COLLECTION)
+                        .document(reportId)
+                        .set(report)
+                        .get();
+
+                return reportId;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save diagnostic report: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsForPatient(String patientUid) {
+        return getDiagnosticReportsByField("patientUid", patientUid);
+    }
+
+    public CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsForDoctor(String doctorUid) {
+        return getDiagnosticReportsByField("doctorUid", doctorUid);
+    }
+
+    public CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsForHospital(String hospitalUid) {
+        return getDiagnosticReportsByField("hospitalUid", hospitalUid);
+    }
+
+    private CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsByField(String fieldName, String uid) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DiagnosticReport> reports = new ArrayList<>();
+
+            try {
+                if (uid == null || uid.isBlank()) {
+                    return reports;
+                }
+
+                QuerySnapshot snapshot = firestore.collection(DIAGNOSTIC_REPORTS_COLLECTION)
+                        .whereEqualTo(fieldName, uid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    DiagnosticReport report = doc.toObject(DiagnosticReport.class);
+
+                    if (report != null) {
+                        report.setReportId(doc.getId());
+                        reports.add(report);
+                    }
+                }
+
+                reports.sort((left, right) -> Long.compare(
+                        right.getUploadedAt() != null ? right.getUploadedAt() : 0L,
+                        left.getUploadedAt() != null ? left.getUploadedAt() : 0L
+                ));
+
+                return reports;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve diagnostic reports: " + e.getMessage(), e);
+            }
+        });
+    }
 
     public CompletableFuture<Void> publishHospitalDiagnosticResults(Appointment appointment) {
         return CompletableFuture.runAsync(() -> {
@@ -1964,42 +2063,72 @@ public class FirebaseService {
                 if (appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
                     throw new RuntimeException("Patient is required to upload diagnostic results.");
                 }
+                if (appointment.getDoctorUid() == null || appointment.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Doctor is required to upload diagnostic results.");
+                }
+                if (appointment.getHospitalUid() == null || appointment.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital is required to upload diagnostic results.");
+                }
 
                 updateAppointment(appointment).get();
 
                 String hospitalName = valueOrDefault(appointment.getHospitalName(), "the hospital");
-                String serviceType = valueOrDefault(appointment.getReferralType(), "hospital service");
+                String serviceType = valueOrDefault(appointment.getReferralType(), "Diagnostic Report");
+
+                DiagnosticReport report = new DiagnosticReport();
+                report.setAppointmentId(appointment.getAppointmentId());
+
+                report.setPatientUid(appointment.getPatientUid());
+                report.setPatientName(appointment.getPatientName());
+
+                report.setDoctorUid(appointment.getDoctorUid());
+                report.setDoctorName(appointment.getDoctorName());
+
+                report.setHospitalUid(appointment.getHospitalUid());
+                report.setHospitalName(appointment.getHospitalName());
+
+                report.setReportTitle(serviceType);
+                report.setReportType(serviceType);
+
+                report.setHospitalFindings(appointment.getHospitalFindings());
+                report.setDiagnosticResults(appointment.getDiagnosticResults());
+
+                report.setUploadedByUid(appointment.getHospitalUid());
+                report.setUploadedByRole("HOSPITAL");
+                report.setUploadedAt(System.currentTimeMillis());
+                report.setStatus("NEW");
+
+                String reportId = saveDiagnosticReport(report).get();
 
                 notifyPatient(
                         appointment.getPatientUid(),
                         "Diagnostic Results Available",
                         hospitalName + " uploaded your " + serviceType + " results.",
                         "DIAGNOSTIC_RESULT",
-                        appointment.getAppointmentId()
+                        reportId
                 );
 
-                if (appointment.getDoctorUid() != null && !appointment.getDoctorUid().isBlank()) {
-                    notifyDoctor(
-                            appointment.getDoctorUid(),
-                            "Hospital Results Uploaded",
-                            hospitalName + " uploaded results for " + valueOrDefault(appointment.getPatientName(), "your patient") + ".",
-                            "DIAGNOSTIC_RESULT",
-                            appointment.getAppointmentId()
-                    );
+                notifyDoctor(
+                        appointment.getDoctorUid(),
+                        "Hospital Results Uploaded",
+                        hospitalName + " uploaded results for " + valueOrDefault(appointment.getPatientName(), "your patient") + ".",
+                        "DIAGNOSTIC_RESULT",
+                        reportId
+                );
 
-                    Message message = new Message();
-                    message.setDoctorUid(appointment.getDoctorUid());
-                    message.setDoctorName(appointment.getDoctorName());
-                    message.setPatientUid(appointment.getPatientUid());
-                    message.setPatientName(appointment.getPatientName());
-                    message.setSenderUid(appointment.getDoctorUid());
-                    message.setSenderName(valueOrDefault(appointment.getDoctorName(), "Care Team"));
-                    message.setSenderRole("SYSTEM");
-                    message.setMessageText(buildDiagnosticMessage(appointment, hospitalName, serviceType));
-                    message.setCreatedAt(System.currentTimeMillis());
-                    message.setRead(false);
-                    saveMessage(message).get();
-                }
+                Message message = new Message();
+                message.setDoctorUid(appointment.getDoctorUid());
+                message.setDoctorName(appointment.getDoctorName());
+                message.setPatientUid(appointment.getPatientUid());
+                message.setPatientName(appointment.getPatientName());
+                message.setSenderUid(appointment.getHospitalUid());
+                message.setSenderName(hospitalName);
+                message.setSenderRole("SYSTEM");
+                message.setMessageText(buildDiagnosticMessage(appointment, hospitalName, serviceType));
+                message.setCreatedAt(System.currentTimeMillis());
+                message.setRead(false);
+                saveMessage(message).get();
+
             } catch (Exception e) {
                 throw new RuntimeException("Failed to publish hospital diagnostic results: " + e.getMessage(), e);
             }

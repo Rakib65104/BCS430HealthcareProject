@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="rakib.bcs430healthcareproject.MedicalReportsController"
+            stylesheets="@app.css"
+            styleClass="root">
+
+    <top>
+        <VBox spacing="0">
+            <HBox style="-fx-background-color:#0F766E; -fx-padding:16 24; -fx-alignment:center-left; -fx-spacing:18;">
+                <Button text="← Back"
+                        onAction="#onBack"
+                        style="-fx-background-color:white; -fx-text-fill:#0F766E; -fx-font-size:12; -fx-font-weight:bold; -fx-background-radius:8; -fx-padding:6 14; -fx-cursor:hand;" />
+
+                <Label text="HealthConnect"
+                       style="-fx-text-fill:white; -fx-font-size:24; -fx-font-weight:bold;" />
+            </HBox>
+
+            <HBox style="-fx-background-color:#134E4A; -fx-padding:18 24;">
+                <VBox spacing="4">
+                    <Label fx:id="pageTitleLabel"
+                           text="Medical Reports"
+                           style="-fx-text-fill:white; -fx-font-size:24; -fx-font-weight:bold;" />
+                    <Label fx:id="pageSubtitleLabel"
+                           text="Shared report hub"
+                           style="-fx-text-fill:#CCFBF1; -fx-font-size:13;" />
+                </VBox>
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color:transparent; -fx-border-color:transparent;">
+            <content>
+                <VBox fx:id="reportsContainer"
+                      spacing="16"
+                      style="-fx-padding:20; -fx-background-color:#F8FAFC;">
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+</BorderPane>

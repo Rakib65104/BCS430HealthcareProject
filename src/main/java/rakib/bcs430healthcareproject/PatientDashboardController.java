@@ -41,10 +41,8 @@ public class PatientDashboardController {
     @FXML private Button profileButton;
     @FXML private Button notificationButton;
     @FXML private Button logoutButton;
-
     @FXML private Button messageFabButton;
 
-    // 🔴 NEW: Notification badge
     @FXML private Label notificationCountLabel;
 
     private Timeline clockTimeline;
@@ -74,20 +72,13 @@ public class PatientDashboardController {
                 patientEmailLabel.setText("Email: " + profile.getEmail());
             }
 
-            // 🔔 LOAD NOTIFICATION COUNT
             loadNotificationCount(uid);
             loadUpcomingAppointments(uid);
-
-            // 🔄 START POLLING
             startNotificationPolling(uid);
         } else {
             hideNotificationBadge();
         }
     }
-
-    // =========================================================
-    // CLOCK
-    // =========================================================
 
     private void startClock() {
         updateClockLabel();
@@ -99,10 +90,6 @@ public class PatientDashboardController {
     private void updateClockLabel() {
         currentDateTimeLabel.setText("Today: " + LocalDateTime.now().format(DATE_TIME_DISPLAY_FORMAT));
     }
-
-    // =========================================================
-    // MESSAGE CHECKER
-    // =========================================================
 
     private void startUnreadMessageChecker() {
         unreadCheckTimeline = new Timeline(
@@ -134,10 +121,6 @@ public class PatientDashboardController {
                     return null;
                 });
     }
-
-    // =========================================================
-    // 🔔 NOTIFICATION SYSTEM
-    // =========================================================
 
     private void startNotificationPolling(String uid) {
         notificationPolling = new Timeline(
@@ -263,9 +246,7 @@ public class PatientDashboardController {
         new Thread(() -> {
             try {
                 int unread = firebaseService.getUnreadNotificationCount(uid);
-
                 Platform.runLater(() -> updateNotificationBadge(unread));
-
             } catch (Exception e) {
                 e.printStackTrace();
                 Platform.runLater(this::hideNotificationBadge);
@@ -293,10 +274,6 @@ public class PatientDashboardController {
         notificationCountLabel.setManaged(false);
     }
 
-    // =========================================================
-    // NAVIGATION
-    // =========================================================
-
     @FXML
     private void handleOpenMessages() {
         SceneRouter.go("patient-message-view.fxml", "Messages");
@@ -310,6 +287,11 @@ public class PatientDashboardController {
     @FXML
     private void onPrescriptions() {
         SceneRouter.go("patient-prescriptions-view.fxml", "My Prescriptions");
+    }
+
+    @FXML
+    private void onMedicalReports() {
+        SceneRouter.go("medical-reports-view.fxml", "Medical Reports");
     }
 
     @FXML
@@ -327,7 +309,6 @@ public class PatientDashboardController {
         SceneRouter.go("patient-profile-view.fxml", "My Profile");
     }
 
-    // 🔥 FIXED
     @FXML
     private void onNotifications() {
         SceneRouter.go("notifications-view.fxml", "Notifications");
@@ -338,10 +319,6 @@ public class PatientDashboardController {
         userContext.clearUserData();
         SceneRouter.go("login-view.fxml", "Login");
     }
-
-    // =========================================================
-    // UI EFFECTS
-    // =========================================================
 
     private void setupNotificationBellAnimation() {
         if (notificationButton != null) {

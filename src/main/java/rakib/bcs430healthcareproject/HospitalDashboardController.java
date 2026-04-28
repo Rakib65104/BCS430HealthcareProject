@@ -299,6 +299,11 @@ public class HospitalDashboardController {
     }
 
     @FXML
+    private void onUploadResults() {
+        SceneRouter.go("hospital-diagnostic.fxml", "Upload Diagnostic Results");
+    }
+
+    @FXML
     private void onSendPrescription() {
         SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients");
     }

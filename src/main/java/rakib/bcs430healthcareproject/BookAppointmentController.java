@@ -156,6 +156,10 @@ public class BookAppointmentController {
         appointment.setReason(reason);
         appointment.setNotes(notes);
 
+        appointment.setHospitalUid(selectedDoctor.getHospitalUid());
+        appointment.setHospitalName(selectedDoctor.getHospitalName());
+
+
         firebaseService.isSlotStillAvailable(
                 selectedDoctor.getUid(),
                 selectedDate.toString(),

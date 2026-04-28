@@ -36,6 +36,10 @@
                         onAction="#onDepartments"
                         style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold; -fx-cursor: hand;" />
 
+                <Button text="Upload Results"
+                        onAction="#onUploadResults"
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold; -fx-cursor: hand;" />
+
                 <Button text="Send Prescription"
                         onAction="#onSendPrescription"
                         style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold; -fx-cursor: hand;" />

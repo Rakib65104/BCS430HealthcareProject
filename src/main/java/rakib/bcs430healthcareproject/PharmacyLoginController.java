@@ -2,7 +2,6 @@ package rakib.bcs430healthcareproject;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -32,6 +31,7 @@ public class PharmacyLoginController {
 
         showMessage("Signing in...", false);
 
+        // Assuming you have an authenticatePharmacy method in your FirebaseService
         firebaseService.authenticatePharmacy(email, password)
                 .thenCompose(uid -> firebaseService.getPharmacyProfile(uid)
                         .thenApply(profile -> {
@@ -39,7 +39,7 @@ public class PharmacyLoginController {
                             return profile;
                         }))
                 .thenAccept(profile -> Platform.runLater(() ->
-                        SceneRouter.go("pharmacy-prescriptions-view.fxml", "Pharmacy Portal")))
+                        SceneRouter.go("pharmacy-dashboard-view.fxml", "Pharmacy Portal")))
                 .exceptionally(ex -> {
                     Platform.runLater(() -> showMessage(cleanErrorMessage(ex), true));
                     return null;
@@ -58,58 +58,15 @@ public class PharmacyLoginController {
 
     @FXML
     private void onForgotPassword() {
-        String email = emailField.getText() == null ? "" : emailField.getText().trim().toLowerCase();
-
-        if (email.isEmpty() || !email.contains("@") || !email.contains(".")) {
-            showAlert(Alert.AlertType.WARNING, "Email Required",
-                    "Please enter your registered email address in the Email field before requesting a password reset.");
-            return;
-        }
-
-        showMessage("Sending reset link...", false);
-
-        firebaseService.sendPasswordResetEmail(email)
-                .thenAccept(v -> Platform.runLater(() -> {
-                    showMessage("", false); // Clear the message label
-                    showAlert(Alert.AlertType.INFORMATION, "Password Reset Sent",
-                            "A password reset link has been successfully sent to " + email + ". Please check your inbox and spam folder.");
-                }))
-                .exceptionally(ex -> {
-                    Platform.runLater(() -> {
-                        showMessage("", false);
-                        showAlert(Alert.AlertType.ERROR, "Reset Failed", cleanErrorMessage(ex));
-                    });
-                    return null;
-                });
-    }
-
-    @FXML
-    private void onForgotUsername() {
-        // Because Firebase uses email as the primary login identifier, users who forget
-        // their login email usually need to contact administrative support.
-        showAlert(Alert.AlertType.INFORMATION, "Forgot Username/Email",
-                "Your username is the email address you used to register.\n\n" +
-                        "If you no longer remember which email you used, please contact the system administrator or IT support to recover your account.");
+        // Route to the dedicated pharmacy forgot password view
+        SceneRouter.go("pharmacy-forgot-password-view.fxml", "Pharmacy Password Recovery");
     }
 
     private void showMessage(String message, boolean isError) {
-        if (message == null || message.isEmpty()) {
-            errorLabel.setVisible(false);
-            errorLabel.setManaged(false);
-            return;
-        }
         errorLabel.setText(message);
         errorLabel.setStyle(isError ? "-fx-text-fill:#DC2626;" : "-fx-text-fill:#0F766E;");
         errorLabel.setManaged(true);
         errorLabel.setVisible(true);
-    }
-
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     private String cleanErrorMessage(Throwable throwable) {

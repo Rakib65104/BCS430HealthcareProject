@@ -108,15 +108,6 @@ public class LoginController {
     }
 
     @FXML
-    private void onForgotUsername() {
-        // Firebase uses the email as the username. We display a helpful message.
-        errorLabel.setText("Your email is your username. If lost, please contact support.");
-        errorLabel.setStyle("-fx-text-fill: #0F766E;"); // Use theme color for info
-        errorLabel.setManaged(true);
-        errorLabel.setVisible(true);
-    }
-
-    @FXML
     private void onGoSignup() {
         SceneRouter.go("signup-role-view.fxml", "Sign Up");
     }

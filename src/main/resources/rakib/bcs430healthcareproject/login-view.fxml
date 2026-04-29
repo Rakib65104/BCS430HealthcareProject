@@ -46,14 +46,8 @@
                        style="-fx-font-size:13; -fx-text-fill:#6B7280;"/>
 
                 <VBox spacing="6">
-                    <HBox alignment="CENTER_LEFT">
-                        <Label text="Email (Username)"
-                               style="-fx-font-size:13; -fx-text-fill:#374151;"/>
-                        <Region HBox.hgrow="ALWAYS"/>
-                        <Hyperlink text="Forgot username?"
-                                   onAction="#onForgotUsername"
-                                   style="-fx-font-size:12; -fx-text-fill:#0F766E; -fx-padding:0; -fx-border-width:0;"/>
-                    </HBox>
+                    <Label text="Email (Username)"
+                           style="-fx-font-size:13; -fx-text-fill:#374151;"/>
 
                     <TextField fx:id="emailField"
                                promptText="name@example.com"

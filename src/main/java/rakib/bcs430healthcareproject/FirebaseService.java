@@ -17,8 +17,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +47,7 @@ public class FirebaseService {
     private static final String MESSAGES_COLLECTION = "messages";
     private static final String NOTIFICATIONS_COLLECTION = "notifications";
     private static final String HOSPITAL_DEPARTMENTS_COLLECTION = "hospitalDepartments";
+    private static final String DIAGNOSTIC_REPORTS_COLLECTION = "diagnosticReports";
 
     public FirebaseService() {
         this.auth = FirebaseAuth.getInstance();
@@ -996,6 +999,31 @@ public class FirebaseService {
         });
     }
 
+    public CompletableFuture<String> createHospitalReferralAppointment(Appointment appointment) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (appointment == null) {
+                    throw new RuntimeException("Referral appointment cannot be null.");
+                }
+                if (appointment.getHospitalUid() == null || appointment.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital is required for a referral.");
+                }
+                if (appointment.getHospitalName() == null || appointment.getHospitalName().isBlank()) {
+                    throw new RuntimeException("Hospital name is required for a referral.");
+                }
+                if (appointment.getDoctorUid() == null || appointment.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Referring doctor is required.");
+                }
+
+                appointment.setReferralAuthorizedByDoctorUid(appointment.getDoctorUid());
+                appointment.setReferralAuthorizedByDoctorName(appointment.getDoctorName());
+                return internalSaveAppointment(appointment);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create hospital referral: " + e.getMessage(), e);
+            }
+        });
+    }
+
     private String internalSaveAppointment(Appointment appointment) throws Exception {
         if (appointment == null) {
             throw new RuntimeException("Appointment cannot be null.");
@@ -1033,14 +1061,17 @@ public class FirebaseService {
             throw new RuntimeException("Appointment time slot is required.");
         }
 
-        boolean available = isSlotStillAvailable(
-                appointment.getDoctorUid(),
-                appointment.getAppointmentDate(),
-                appointment.getAppointmentSlot()
-        ).get();
+        boolean hospitalReferral = appointment.getHospitalUid() != null && !appointment.getHospitalUid().isBlank();
+        if (!hospitalReferral) {
+            boolean available = isSlotStillAvailable(
+                    appointment.getDoctorUid(),
+                    appointment.getAppointmentDate(),
+                    appointment.getAppointmentSlot()
+            ).get();
 
-        if (!available) {
-            throw new RuntimeException("This slot has already been booked.");
+            if (!available) {
+                throw new RuntimeException("This slot has already been booked.");
+            }
         }
 
         String appointmentId = firestore.collection(APPOINTMENTS_COLLECTION).document().getId();
@@ -1081,6 +1112,10 @@ public class FirebaseService {
                         appointments.add(appointment);
                     }
                 }
+                appointments.sort(Comparator.comparing(
+                        Appointment::resolveAppointmentEpochMillis,
+                        Comparator.nullsLast(Long::compareTo)
+                ));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to retrieve appointments: " + e.getMessage(), e);
             }
@@ -1107,6 +1142,10 @@ public class FirebaseService {
                         appointments.add(appointment);
                     }
                 }
+                appointments.sort(Comparator.comparing(
+                        Appointment::resolveAppointmentEpochMillis,
+                        Comparator.nullsLast(Long::compareTo)
+                ));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to retrieve doctor appointments: " + e.getMessage(), e);
             }
@@ -1171,43 +1210,12 @@ public class FirebaseService {
 
             try {
                 HospitalProfile hospitalProfile = getHospitalProfile(hospitalUid).get();
+                collectHospitalPatients(uniquePatients, hospitalUid, null);
 
-                QuerySnapshot snapshot = firestore.collection(APPOINTMENTS_COLLECTION)
-                        .whereEqualTo("hospitalUid", hospitalUid)
-                        .get()
-                        .get();
-
-                if (snapshot.isEmpty() && hospitalProfile != null) {
+                if (hospitalProfile != null) {
                     String hospitalName = hospitalProfile.getHospitalName();
                     if (hospitalName != null && !hospitalName.isBlank()) {
-                        snapshot = firestore.collection(APPOINTMENTS_COLLECTION)
-                                .whereEqualTo("hospitalName", hospitalName)
-                                .get()
-                                .get();
-                    }
-                }
-
-                for (DocumentSnapshot appointmentDoc : snapshot.getDocuments()) {
-                    String patientUid = appointmentDoc.getString("patientUid");
-                    if (patientUid == null || patientUid.isBlank() || uniquePatients.containsKey(patientUid)) {
-                        continue;
-                    }
-
-                    DocumentSnapshot patientDoc = firestore.collection(PATIENTS_COLLECTION)
-                            .document(patientUid)
-                            .get()
-                            .get();
-
-                    if (!patientDoc.exists()) {
-                        continue;
-                    }
-
-                    PatientProfile profile = patientDoc.toObject(PatientProfile.class);
-                    if (profile != null) {
-                        if (profile.getUid() == null || profile.getUid().isBlank()) {
-                            profile.setUid(patientDoc.getId());
-                        }
-                        uniquePatients.put(patientUid, profile);
+                        collectHospitalPatients(uniquePatients, null, hospitalName);
                     }
                 }
 
@@ -1232,35 +1240,47 @@ public class FirebaseService {
      */
     public CompletableFuture<List<Appointment>> getAppointmentsForHospital(String hospitalUid) {
         return CompletableFuture.supplyAsync(() -> {
-            List<Appointment> appointments = new ArrayList<>();
+            Map<String, Appointment> appointmentsById = new LinkedHashMap<>();
 
             try {
                 HospitalProfile hospitalProfile = getHospitalProfile(hospitalUid).get();
+                collectHospitalAppointments(appointmentsById, hospitalUid, null);
 
-                QuerySnapshot snapshot = firestore.collection(APPOINTMENTS_COLLECTION)
-                        .whereEqualTo("hospitalUid", hospitalUid)
-                        .orderBy("appointmentDateTime", Query.Direction.ASCENDING)
-                        .get()
-                        .get();
-
-                if (snapshot.isEmpty() && hospitalProfile != null) {
+                if (hospitalProfile != null) {
                     String hospitalName = hospitalProfile.getHospitalName();
                     if (hospitalName != null && !hospitalName.isBlank()) {
-                        snapshot = firestore.collection(APPOINTMENTS_COLLECTION)
-                                .whereEqualTo("hospitalName", hospitalName)
-                                .orderBy("appointmentDateTime", Query.Direction.ASCENDING)
-                                .get()
-                                .get();
+                        collectHospitalAppointments(appointmentsById, null, hospitalName);
                     }
                 }
 
-                for (DocumentSnapshot doc : snapshot.getDocuments()) {
-                    Appointment appointment = doc.toObject(Appointment.class);
-                    if (appointment != null) {
-                        appointment.setAppointmentId(doc.getId());
-                        appointments.add(appointment);
+                List<Appointment> appointments = new ArrayList<>(appointmentsById.values());
+                appointments.sort((left, right) -> {
+                    Long leftEpoch = left.resolveAppointmentEpochMillis();
+                    Long rightEpoch = right.resolveAppointmentEpochMillis();
+
+                    if (leftEpoch != null && rightEpoch != null) {
+                        return leftEpoch.compareTo(rightEpoch);
                     }
-                }
+                    if (leftEpoch != null) {
+                        return -1;
+                    }
+                    if (rightEpoch != null) {
+                        return 1;
+                    }
+
+                    Long leftCreated = left.getCreatedAt();
+                    Long rightCreated = right.getCreatedAt();
+                    if (leftCreated != null && rightCreated != null) {
+                        return leftCreated.compareTo(rightCreated);
+                    }
+                    if (leftCreated != null) {
+                        return -1;
+                    }
+                    if (rightCreated != null) {
+                        return 1;
+                    }
+                    return 0;
+                });
 
                 return appointments;
             } catch (Exception e) {
@@ -1329,8 +1349,10 @@ public class FirebaseService {
                 if (prescription == null) {
                     throw new RuntimeException("Prescription cannot be null.");
                 }
-                if (prescription.getDoctorUid() == null || prescription.getDoctorUid().isBlank()) {
-                    throw new RuntimeException("Doctor ID is required.");
+                boolean hasDoctorIssuer = prescription.getDoctorUid() != null && !prescription.getDoctorUid().isBlank();
+                boolean hasHospitalIssuer = prescription.getHospitalUid() != null && !prescription.getHospitalUid().isBlank();
+                if (!hasDoctorIssuer && !hasHospitalIssuer) {
+                    throw new RuntimeException("A doctor or hospital ID is required.");
                 }
                 if (prescription.getPatientUid() == null || prescription.getPatientUid().isBlank()) {
                     throw new RuntimeException("Patient ID is required.");
@@ -1397,6 +1419,70 @@ public class FirebaseService {
                 throw new RuntimeException("Failed to save prescription: " + e.getMessage(), e);
             }
         });
+    }
+
+    private void collectHospitalPatients(Map<String, PatientProfile> uniquePatients,
+                                         String hospitalUid,
+                                         String hospitalName) throws Exception {
+        QuerySnapshot snapshot = getHospitalAppointmentsSnapshot(hospitalUid, hospitalName);
+
+        for (DocumentSnapshot appointmentDoc : snapshot.getDocuments()) {
+            String patientUid = appointmentDoc.getString("patientUid");
+            if (patientUid == null || patientUid.isBlank() || uniquePatients.containsKey(patientUid)) {
+                continue;
+            }
+
+            DocumentSnapshot patientDoc = firestore.collection(PATIENTS_COLLECTION)
+                    .document(patientUid)
+                    .get()
+                    .get();
+
+            if (!patientDoc.exists()) {
+                continue;
+            }
+
+            PatientProfile profile = patientDoc.toObject(PatientProfile.class);
+            if (profile != null) {
+                if (profile.getUid() == null || profile.getUid().isBlank()) {
+                    profile.setUid(patientDoc.getId());
+                }
+                uniquePatients.put(patientUid, profile);
+            }
+        }
+    }
+
+    private void collectHospitalAppointments(Map<String, Appointment> appointmentsById,
+                                             String hospitalUid,
+                                             String hospitalName) throws Exception {
+        QuerySnapshot snapshot = getHospitalAppointmentsSnapshot(hospitalUid, hospitalName);
+
+        for (DocumentSnapshot doc : snapshot.getDocuments()) {
+            Appointment appointment = doc.toObject(Appointment.class);
+            if (appointment == null) {
+                continue;
+            }
+
+            appointment.setAppointmentId(doc.getId());
+            appointmentsById.put(doc.getId(), appointment);
+        }
+    }
+
+    private QuerySnapshot getHospitalAppointmentsSnapshot(String hospitalUid, String hospitalName) throws Exception {
+        if (hospitalUid != null && !hospitalUid.isBlank()) {
+            return firestore.collection(APPOINTMENTS_COLLECTION)
+                    .whereEqualTo("hospitalUid", hospitalUid)
+                    .get()
+                    .get();
+        }
+
+        if (hospitalName != null && !hospitalName.isBlank()) {
+            return firestore.collection(APPOINTMENTS_COLLECTION)
+                    .whereEqualTo("hospitalName", hospitalName)
+                    .get()
+                    .get();
+        }
+
+        throw new RuntimeException("Hospital identifier is required.");
     }
 
     /**
@@ -1869,6 +1955,185 @@ public class FirebaseService {
             }
         });
     }
+    public CompletableFuture<String> saveDiagnosticReport(DiagnosticReport report) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (report == null) {
+                    throw new RuntimeException("Diagnostic report cannot be null.");
+                }
+                if (report.getPatientUid() == null || report.getPatientUid().isBlank()) {
+                    throw new RuntimeException("Patient ID is required.");
+                }
+                if (report.getDoctorUid() == null || report.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Doctor ID is required.");
+                }
+                if (report.getHospitalUid() == null || report.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital ID is required.");
+                }
+                if (report.getDiagnosticResults() == null || report.getDiagnosticResults().isBlank()) {
+                    throw new RuntimeException("Diagnostic results are required.");
+                }
+
+                String reportId = firestore.collection(DIAGNOSTIC_REPORTS_COLLECTION).document().getId();
+                report.setReportId(reportId);
+
+                if (report.getUploadedAt() == null) {
+                    report.setUploadedAt(System.currentTimeMillis());
+                }
+
+                if (report.getStatus() == null || report.getStatus().isBlank()) {
+                    report.setStatus("NEW");
+                }
+
+                if (report.getReportTitle() == null || report.getReportTitle().isBlank()) {
+                    report.setReportTitle("Hospital Diagnostic Report");
+                }
+
+                if (report.getReportType() == null || report.getReportType().isBlank()) {
+                    report.setReportType("Diagnostic Result");
+                }
+
+                firestore.collection(DIAGNOSTIC_REPORTS_COLLECTION)
+                        .document(reportId)
+                        .set(report)
+                        .get();
+
+                return reportId;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save diagnostic report: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsForPatient(String patientUid) {
+        return getDiagnosticReportsByField("patientUid", patientUid);
+    }
+
+    public CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsForDoctor(String doctorUid) {
+        return getDiagnosticReportsByField("doctorUid", doctorUid);
+    }
+
+    public CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsForHospital(String hospitalUid) {
+        return getDiagnosticReportsByField("hospitalUid", hospitalUid);
+    }
+
+    private CompletableFuture<List<DiagnosticReport>> getDiagnosticReportsByField(String fieldName, String uid) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DiagnosticReport> reports = new ArrayList<>();
+
+            try {
+                if (uid == null || uid.isBlank()) {
+                    return reports;
+                }
+
+                QuerySnapshot snapshot = firestore.collection(DIAGNOSTIC_REPORTS_COLLECTION)
+                        .whereEqualTo(fieldName, uid)
+                        .get()
+                        .get();
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    DiagnosticReport report = doc.toObject(DiagnosticReport.class);
+
+                    if (report != null) {
+                        report.setReportId(doc.getId());
+                        reports.add(report);
+                    }
+                }
+
+                reports.sort((left, right) -> Long.compare(
+                        right.getUploadedAt() != null ? right.getUploadedAt() : 0L,
+                        left.getUploadedAt() != null ? left.getUploadedAt() : 0L
+                ));
+
+                return reports;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to retrieve diagnostic reports: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<Void> publishHospitalDiagnosticResults(Appointment appointment) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (appointment == null || appointment.getAppointmentId() == null || appointment.getAppointmentId().isBlank()) {
+                    throw new RuntimeException("Appointment is required to upload diagnostic results.");
+                }
+                if (appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
+                    throw new RuntimeException("Patient is required to upload diagnostic results.");
+                }
+                if (appointment.getDoctorUid() == null || appointment.getDoctorUid().isBlank()) {
+                    throw new RuntimeException("Doctor is required to upload diagnostic results.");
+                }
+                if (appointment.getHospitalUid() == null || appointment.getHospitalUid().isBlank()) {
+                    throw new RuntimeException("Hospital is required to upload diagnostic results.");
+                }
+
+                updateAppointment(appointment).get();
+
+                String hospitalName = valueOrDefault(appointment.getHospitalName(), "the hospital");
+                String serviceType = valueOrDefault(appointment.getReferralType(), "Diagnostic Report");
+
+                DiagnosticReport report = new DiagnosticReport();
+                report.setAppointmentId(appointment.getAppointmentId());
+
+                report.setPatientUid(appointment.getPatientUid());
+                report.setPatientName(appointment.getPatientName());
+
+                report.setDoctorUid(appointment.getDoctorUid());
+                report.setDoctorName(appointment.getDoctorName());
+
+                report.setHospitalUid(appointment.getHospitalUid());
+                report.setHospitalName(appointment.getHospitalName());
+
+                report.setReportTitle(serviceType);
+                report.setReportType(serviceType);
+
+                report.setHospitalFindings(appointment.getHospitalFindings());
+                report.setDiagnosticResults(appointment.getDiagnosticResults());
+
+                report.setUploadedByUid(appointment.getHospitalUid());
+                report.setUploadedByRole("HOSPITAL");
+                report.setUploadedAt(System.currentTimeMillis());
+                report.setStatus("NEW");
+
+                String reportId = saveDiagnosticReport(report).get();
+
+                notifyPatient(
+                        appointment.getPatientUid(),
+                        "Diagnostic Results Available",
+                        hospitalName + " uploaded your " + serviceType + " results.",
+                        "DIAGNOSTIC_RESULT",
+                        reportId
+                );
+
+                notifyDoctor(
+                        appointment.getDoctorUid(),
+                        "Hospital Results Uploaded",
+                        hospitalName + " uploaded results for " + valueOrDefault(appointment.getPatientName(), "your patient") + ".",
+                        "DIAGNOSTIC_RESULT",
+                        reportId
+                );
+
+                Message message = new Message();
+                message.setDoctorUid(appointment.getDoctorUid());
+                message.setDoctorName(appointment.getDoctorName());
+                message.setPatientUid(appointment.getPatientUid());
+                message.setPatientName(appointment.getPatientName());
+                message.setSenderUid(appointment.getHospitalUid());
+                message.setSenderName(hospitalName);
+                message.setSenderRole("SYSTEM");
+                message.setMessageText(buildDiagnosticMessage(appointment, hospitalName, serviceType));
+                message.setCreatedAt(System.currentTimeMillis());
+                message.setRead(false);
+                saveMessage(message).get();
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to publish hospital diagnostic results: " + e.getMessage(), e);
+            }
+        });
+    }
 
     public CompletableFuture<Void> deleteAppointment(String appointmentId) {
         return CompletableFuture.runAsync(() -> {
@@ -2038,6 +2303,33 @@ public class FirebaseService {
 
         createNotification(notification);
     }
+
+    private String buildDiagnosticMessage(Appointment appointment, String hospitalName, String serviceType) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(hospitalName)
+                .append(" uploaded ")
+                .append(serviceType)
+                .append(" results for ")
+                .append(valueOrDefault(appointment.getPatientName(), "the patient"))
+                .append(".");
+
+        if (appointment.getHospitalFindings() != null && !appointment.getHospitalFindings().isBlank()) {
+            builder.append("\n\nHospital findings:\n")
+                    .append(appointment.getHospitalFindings().trim());
+        }
+
+        if (appointment.getDiagnosticResults() != null && !appointment.getDiagnosticResults().isBlank()) {
+            builder.append("\n\nDiagnostic results:\n")
+                    .append(appointment.getDiagnosticResults().trim());
+        }
+
+        return builder.toString();
+    }
+
+    private String valueOrDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
     public CompletableFuture<String> addHospitalDepartment(HospitalDepartment department) {
         return CompletableFuture.supplyAsync(() -> {
             try {

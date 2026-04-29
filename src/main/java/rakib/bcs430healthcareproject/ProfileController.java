@@ -50,6 +50,7 @@ public class ProfileController {
     private PatientProfile currentProfile;
     private boolean isEditMode = false;
     private boolean isDoctorPatientView = false;
+    private boolean isHospitalReadOnlyView = false;
     private boolean isPharmacyReadOnlyView = false;
     private List<PharmacyOption> pharmacyOptions = new ArrayList<>();
 
@@ -94,6 +95,10 @@ public class ProfileController {
 
         if (userContext.isDoctor() && userContext.getSelectedPatientProfile() != null) {
             isDoctorPatientView = true;
+            currentProfile = userContext.getSelectedPatientProfile();
+            titleLabel.setText("Patient Profile");
+        } else if (userContext.isHospital() && userContext.getSelectedPatientProfile() != null) {
+            isHospitalReadOnlyView = true;
             currentProfile = userContext.getSelectedPatientProfile();
             titleLabel.setText("Patient Profile");
         } else if (userContext.isPharmacy() && userContext.getSelectedPatientProfile() != null) {
@@ -333,13 +338,18 @@ public class ProfileController {
             SceneRouter.go("pharmacy-prescriptions-view.fxml", "Pharmacy Portal");
             return;
         }
+        if (isHospitalReadOnlyView) {
+            userContext.clearSelectedPatientProfile();
+            SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients");
+            return;
+        }
 
         SceneRouter.go("patient-dashboard-view.fxml", "Patient Dashboard");
     }
 
     @FXML
     private void onViewPastAppointments() {
-        if (isDoctorPatientView && currentProfile != null) {
+        if ((isDoctorPatientView || isHospitalReadOnlyView) && currentProfile != null) {
             userContext.setSelectedPatientUid(currentProfile.getUid());
             userContext.setSelectedPatientProfile(currentProfile);
         }
@@ -565,10 +575,13 @@ public class ProfileController {
     }
 
     private boolean isReadOnlyPatientView() {
-        return isPharmacyReadOnlyView;
+        return isPharmacyReadOnlyView || isHospitalReadOnlyView;
     }
 
     private String readOnlyViewMessage() {
+        if (isHospitalReadOnlyView) {
+            return "Hospitals can review patient profiles here, but cannot edit them.";
+        }
         return "Pharmacies can only view patient profiles here.";
     }
 

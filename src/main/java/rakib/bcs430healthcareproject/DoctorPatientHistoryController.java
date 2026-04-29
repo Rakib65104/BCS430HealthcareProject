@@ -66,7 +66,7 @@ public class DoctorPatientHistoryController {
     }
 
     private void loadPatientHistory() {
-        if (!userContext.isLoggedIn() || !userContext.isDoctor()) {
+        if (!userContext.isLoggedIn() || (!userContext.isDoctor() && !userContext.isHospital())) {
             statusLabel.setText("Access denied.");
             return;
         }
@@ -166,6 +166,10 @@ public class DoctorPatientHistoryController {
 
     @FXML
     private void handleBack() {
+        if (userContext.isHospital()) {
+            SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients");
+            return;
+        }
         SceneRouter.go("doctor-patients-view.fxml", "My Patients");
     }
 }

@@ -21,9 +21,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Controller for the Doctor Dashboard.
- */
 public class DoctorDashboardController {
 
     private static final DateTimeFormatter DATE_TIME_DISPLAY_FORMAT =
@@ -41,11 +38,7 @@ public class DoctorDashboardController {
     @FXML private Button profileButton;
     @FXML private Button notificationButton;
     @FXML private Button logoutButton;
-
-    // Notification badge label near bell
     @FXML private Label notificationCountLabel;
-
-    // Message floating action button
     @FXML private Button messageFabButton;
 
     private Timeline clockTimeline;
@@ -65,8 +58,6 @@ public class DoctorDashboardController {
 
         if (userContext.isLoggedIn()) {
             String uid = userContext.getUid();
-
-            System.out.println("Loading doctor dashboard for user: " + uid);
 
             DoctorProfile doctorProfile = userContext.getDoctorProfile();
 
@@ -102,10 +93,6 @@ public class DoctorDashboardController {
         }
     }
 
-    // =========================================================
-    // CLOCK
-    // =========================================================
-
     private void startClock() {
         updateClockLabel();
         clockTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> updateClockLabel()));
@@ -116,10 +103,6 @@ public class DoctorDashboardController {
     private void updateClockLabel() {
         currentDateTimeLabel.setText("Today: " + LocalDateTime.now().format(DATE_TIME_DISPLAY_FORMAT));
     }
-
-    // =========================================================
-    // MESSAGE UNREAD POLLING
-    // =========================================================
 
     private void startUnreadPolling(String uid) {
         unreadPolling = new Timeline(new KeyFrame(Duration.seconds(3), e -> checkUnreadMessages(uid)));
@@ -152,10 +135,6 @@ public class DoctorDashboardController {
         }
     }
 
-    // =========================================================
-    // NOTIFICATION BELL SYSTEM
-    // =========================================================
-
     private void startNotificationPolling(String uid) {
         notificationPolling = new Timeline(new KeyFrame(Duration.seconds(5), e -> {
             loadNotificationCount(uid);
@@ -179,23 +158,17 @@ public class DoctorDashboardController {
     }
 
     private void renderTodayAppointments(List<Appointment> appointments) {
-        if (todayAppointmentsVBox == null) {
-            return;
-        }
+        if (todayAppointmentsVBox == null) return;
 
         todayAppointmentsVBox.getChildren().clear();
         List<Appointment> todaysAppointments = new ArrayList<>();
 
         if (appointments != null) {
             for (Appointment appointment : appointments) {
-                if (appointment == null) {
-                    continue;
-                }
+                if (appointment == null) continue;
 
                 String status = normalizedStatus(appointment.getStatus());
-                if ("CANCELLED".equals(status)) {
-                    continue;
-                }
+                if ("CANCELLED".equals(status)) continue;
 
                 todaysAppointments.add(appointment);
             }
@@ -257,9 +230,7 @@ public class DoctorDashboardController {
 
     private String formatAppointmentTime(Appointment appointment) {
         Long epoch = appointment == null ? null : appointment.resolveAppointmentEpochMillis();
-        if (epoch == null) {
-            return "Time unavailable";
-        }
+        if (epoch == null) return "Time unavailable";
 
         return Instant.ofEpochMilli(epoch)
                 .atZone(ZoneId.systemDefault())
@@ -311,13 +282,8 @@ public class DoctorDashboardController {
         notificationCountLabel.setManaged(false);
     }
 
-    // =========================================================
-    // NAVIGATION
-    // =========================================================
-
     @FXML
     private void handleOpenMessages() {
-        System.out.println("Opening doctor messages...");
         SceneRouter.go("doctor-message-view.fxml", "Messages");
     }
 
@@ -329,6 +295,11 @@ public class DoctorDashboardController {
     @FXML
     private void onSchedule() {
         SceneRouter.go("doctor-schedule-view.fxml", "Doctor Schedule");
+    }
+
+    @FXML
+    private void onMedicalReports() {
+        SceneRouter.go("medical-reports-view.fxml", "Medical Reports");
     }
 
     @FXML
@@ -358,10 +329,6 @@ public class DoctorDashboardController {
         SceneRouter.go("login-view.fxml", "Login");
     }
 
-    // =========================================================
-    // UI EFFECTS
-    // =========================================================
-
     private void setupNotificationBellAnimation() {
         if (notificationButton != null) {
             ScaleTransition pulse = new ScaleTransition(Duration.millis(800), notificationButton);
@@ -375,25 +342,11 @@ public class DoctorDashboardController {
         }
     }
 
-    // =========================================================
-    // CLEANUP
-    // =========================================================
-
     private void stopTimelines() {
-        if (clockTimeline != null) {
-            clockTimeline.stop();
-        }
-        if (unreadPolling != null) {
-            unreadPolling.stop();
-        }
-        if (notificationPolling != null) {
-            notificationPolling.stop();
-        }
+        if (clockTimeline != null) clockTimeline.stop();
+        if (unreadPolling != null) unreadPolling.stop();
+        if (notificationPolling != null) notificationPolling.stop();
     }
-
-    // =========================================================
-    // SMALL INTERNAL ASYNC HELPER
-    // =========================================================
 
     private static class CompletableFutureRunner {
         public static <T> void runAsync(

@@ -16,11 +16,9 @@
             fx:controller="rakib.bcs430healthcareproject.DoctorDashboardController"
             stylesheets="@app.css">
 
-    <!-- Top Header + Tabs -->
     <top>
         <VBox spacing="0">
 
-            <!-- Header -->
             <HBox style="-fx-background-color: #0F766E; -fx-padding: 18 24; -fx-alignment: center-left; -fx-spacing: 15;">
                 <Label text="HealthConnect"
                        style="-fx-text-fill: white; -fx-font-size: 22; -fx-font-weight: bold;" />
@@ -30,9 +28,7 @@
                 <Label fx:id="welcomeLabel"
                        style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;" />
 
-                <!-- 🔔 BELL WITH BADGE -->
                 <StackPane>
-
                     <Button fx:id="notificationButton"
                             onAction="#onNotifications"
                             prefWidth="36"
@@ -50,7 +46,6 @@
                         </graphic>
                     </Button>
 
-                    <!-- 🔴 NOTIFICATION COUNT BADGE -->
                     <Label fx:id="notificationCountLabel"
                            text="0"
                            visible="false"
@@ -72,7 +67,6 @@
                         style="-fx-background-color: #14B8A6; -fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;" />
             </HBox>
 
-            <!-- Tabs -->
             <HBox style="-fx-background-color: #F0FDFA; -fx-padding: 12 24; -fx-spacing: 10; -fx-border-color: #D1FAE5; -fx-border-width: 0 0 1 0;">
 
                 <Button text="Dashboard"
@@ -88,6 +82,10 @@
                         onAction="#onSchedule"
                         style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-border-color: #14B8A6; -fx-border-radius: 20; -fx-background-radius: 20; -fx-padding: 10 18;" />
 
+                <Button text="Medical Reports"
+                        onAction="#onMedicalReports"
+                        style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-border-color: #14B8A6; -fx-border-radius: 20; -fx-background-radius: 20; -fx-padding: 10 18;" />
+
                 <Button fx:id="profileButton"
                         text="My Profile"
                         onAction="#onProfile"
@@ -98,60 +96,70 @@
         </VBox>
     </top>
 
-    <!-- Main Content WITH FLOATING BUTTON -->
     <center>
         <StackPane>
 
-            <!-- Main content -->
             <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-border-color: transparent;">
-            <content>
-            <VBox style="-fx-padding: 30; -fx-spacing: 20; -fx-background-color: #F8FAFC;">
+                <content>
+                    <VBox style="-fx-padding: 30; -fx-spacing: 20; -fx-background-color: #F8FAFC;">
 
-                <!-- Dashboard Title -->
-                <VBox style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6); -fx-background-radius: 12; -fx-padding: 24; -fx-spacing: 8;">
-                    <Label text="Doctor Dashboard"
-                           style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;" />
-                    <Label text="Manage your patients, schedule, and profile from one place."
-                           style="-fx-text-fill: #CCFBF1; -fx-font-size: 14;" />
-                    <Label fx:id="currentDateTimeLabel"
-                           text="Today"
-                           style="-fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold;" />
-                </VBox>
+                        <VBox style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6); -fx-background-radius: 12; -fx-padding: 24; -fx-spacing: 8;">
+                            <Label text="Doctor Dashboard"
+                                   style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;" />
+                            <Label text="Manage your patients, schedule, and profile from one place."
+                                   style="-fx-text-fill: #CCFBF1; -fx-font-size: 14;" />
+                            <Label fx:id="currentDateTimeLabel"
+                                   text="Today"
+                                   style="-fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold;" />
+                        </VBox>
 
-                <!-- Info Panel -->
-                <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 10; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
-                    <Label text="Doctor Information"
-                           style="-fx-text-fill: #0F766E; -fx-font-size: 16; -fx-font-weight: bold;" />
+                        <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 10; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
+                            <Label text="Doctor Information"
+                                   style="-fx-text-fill: #0F766E; -fx-font-size: 16; -fx-font-weight: bold;" />
 
-                    <Label fx:id="doctorNameLabel"
-                           style="-fx-text-fill: #555555; -fx-font-size: 14;" />
+                            <Label fx:id="doctorNameLabel"
+                                   style="-fx-text-fill: #555555; -fx-font-size: 14;" />
 
-                    <Label fx:id="doctorEmailLabel"
-                           style="-fx-text-fill: #555555; -fx-font-size: 14;" />
-                </VBox>
+                            <Label fx:id="doctorEmailLabel"
+                                   style="-fx-text-fill: #555555; -fx-font-size: 14;" />
+                        </VBox>
 
-                <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 12; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
-                    <HBox style="-fx-alignment: center-left; -fx-spacing: 10;">
-                        <Label text="Today's Appointments"
-                               style="-fx-text-fill: #0F766E; -fx-font-size: 16; -fx-font-weight: bold;" />
-                        <Region HBox.hgrow="ALWAYS" />
-                        <Button text="Open Schedule"
-                                onAction="#onSchedule"
-                                style="-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 18; -fx-padding: 8 14;" />
-                    </HBox>
+                        <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 12; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
+                            <HBox style="-fx-alignment: center-left; -fx-spacing: 10;">
+                                <Label text="Today's Appointments"
+                                       style="-fx-text-fill: #0F766E; -fx-font-size: 16; -fx-font-weight: bold;" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Button text="Open Schedule"
+                                        onAction="#onSchedule"
+                                        style="-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 18; -fx-padding: 8 14;" />
+                            </HBox>
 
-                    <Label fx:id="todayAppointmentsStatusLabel"
-                           text="Loading today's appointments..."
-                           style="-fx-text-fill: #475569; -fx-font-size: 12;" />
+                            <Label fx:id="todayAppointmentsStatusLabel"
+                                   text="Loading today's appointments..."
+                                   style="-fx-text-fill: #475569; -fx-font-size: 12;" />
 
-                    <VBox fx:id="todayAppointmentsVBox" spacing="10" />
-                </VBox>
+                            <VBox fx:id="todayAppointmentsVBox" spacing="10" />
+                        </VBox>
 
-            </VBox>
-            </content>
+                        <VBox style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 20; -fx-spacing: 12; -fx-border-color: #D1FAE5; -fx-border-radius: 12;">
+                            <HBox style="-fx-alignment: center-left; -fx-spacing: 10;">
+                                <Label text="Medical Reports"
+                                       style="-fx-text-fill: #0F766E; -fx-font-size: 16; -fx-font-weight: bold;" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Button text="Open Reports"
+                                        onAction="#onMedicalReports"
+                                        style="-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold; -fx-background-radius: 18; -fx-padding: 8 14;" />
+                            </HBox>
+
+                            <Label text="View hospital-uploaded diagnostic results and shared reports for your patients."
+                                   wrapText="true"
+                                   style="-fx-text-fill: #475569; -fx-font-size: 13;" />
+                        </VBox>
+
+                    </VBox>
+                </content>
             </ScrollPane>
 
-            <!-- 💬 FLOATING MESSAGE BUTTON -->
             <Button fx:id="messageFabButton"
                     text="💬"
                     onAction="#handleOpenMessages"

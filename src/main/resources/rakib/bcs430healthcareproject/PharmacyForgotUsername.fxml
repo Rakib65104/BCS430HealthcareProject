@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns:fx="http://javafx.com/fxml"
-            fx:controller="rakib.bcs430healthcareproject.PharmacyForgotPasswordController"
+            fx:controller="rakib.bcs430healthcareproject.PharmacyForgotUsernameController"
             styleClass="root">
 
     <center>
@@ -20,21 +20,21 @@
                 </padding>
 
                 <VBox spacing="4">
-                    <Label text="Reset Password" styleClass="title"/>
-                    <Label text="Enter your registered pharmacy email address to receive a reset link."
+                    <Label text="Forgot Username" styleClass="title"/>
+                    <Label text="Enter the recovery email address associated with your pharmacy account."
                            wrapText="true"
                            styleClass="subtitle"/>
                 </VBox>
 
                 <VBox spacing="8">
-                    <Label text="Email Address" styleClass="label"/>
-                    <TextField fx:id="emailField" promptText="pharmacy@example.com"/>
+                    <Label text="Recovery Email" styleClass="label"/>
+                    <TextField fx:id="recoveryEmailField" promptText="recovery@example.com"/>
                 </VBox>
 
                 <Label fx:id="statusLabel" text="" managed="false" visible="false" styleClass="error"/>
 
-                <Button text="Send Reset Link"
-                        onAction="#onSendResetLink"
+                <Button text="Retrieve Username"
+                        onAction="#onRetrieveUsername"
                         styleClass="primary-btn"
                         maxWidth="1.7976931348623157E308"/>
 

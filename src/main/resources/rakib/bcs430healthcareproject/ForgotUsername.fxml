@@ -12,7 +12,7 @@
 
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
-            fx:controller="rakib.bcs430healthcareproject.ForgotPasswordController"
+            fx:controller="rakib.bcs430healthcareproject.ForgotUsernameController"
             style="-fx-background-color:#F4F9F9;">
 
     <top>
@@ -36,16 +36,22 @@
                          -fx-border-radius:12;">
 
                 <VBox spacing="4">
-                    <Label text="Reset Password"
+                    <Label text="Forgot Username"
                            style="-fx-font-size:22; -fx-font-weight:bold; -fx-text-fill:#134E4A;"/>
-                    <Label text="Enter your registered email address and we will send you a link to reset your password."
+                    <Label text="Enter your registered email address and we will send you your username."
                            wrapText="true"
                            style="-fx-font-size:13; -fx-text-fill:#6B7280;"/>
                 </VBox>
 
                 <VBox spacing="6">
-                    <Label text="Email Address"
-                           style="-fx-font-size:13; -fx-text-fill:#374151;"/>
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="Email Address"
+                               style="-fx-font-size:13; -fx-text-fill:#374151;"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Hyperlink text="Forgot password?"
+                                   onAction="#onForgotPassword"
+                                   style="-fx-font-size:12; -fx-text-fill:#0F766E; -fx-padding:0; -fx-border-width:0;"/>
+                    </HBox>
                     <TextField fx:id="emailField"
                                promptText="name@example.com"
                                style="-fx-background-radius:8; -fx-padding:8;"/>
@@ -57,8 +63,8 @@
                        visible="false"
                        style="-fx-font-size:12; -fx-wrap-text:true;"/>
 
-                <Button text="Send Reset Link"
-                        onAction="#onSendResetLink"
+                <Button text="Send Username"
+                        onAction="#onSendUsername"
                         maxWidth="Infinity"
                         style="-fx-background-color:#0F766E;
                                -fx-text-fill:white;

@@ -4,78 +4,79 @@
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.effect.DropShadow?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.paint.Color?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="rakib.bcs430healthcareproject.ForgotUsernameController"
-            style="-fx-background-color:#F4F9F9;">
-
-    <top>
-        <HBox style="-fx-background-color:#0F766E; -fx-padding:18 24; -fx-alignment:center-left;">
-            <Label text="HealthConnect"
-                   style="-fx-text-fill:white; -fx-font-size:22; -fx-font-weight:bold;"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Label text="Account Recovery"
-                   style="-fx-text-fill:#CCFBF1; -fx-font-size:14;"/>
-        </HBox>
-    </top>
+            style="-fx-background-color: #E8F5E9;"> <top>
+    <HBox style="-fx-background-color: #2E7D32; -fx-padding: 18 24; -fx-alignment: center-left;">
+        <Label text="HealthConnect"
+               style="-fx-text-fill: white; -fx-font-size: 22; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label text="Account Recovery"
+               style="-fx-text-fill: #C8E6C9; -fx-font-size: 14;"/>
+    </HBox>
+</top>
 
     <center>
-        <StackPane>
-            <VBox spacing="16"
-                  maxWidth="420"
-                  style="-fx-background-color:white;
-                         -fx-background-radius:12;
-                         -fx-padding:28;
-                         -fx-border-color:#E5E7EB;
-                         -fx-border-radius:12;">
+        <StackPane alignment="CENTER" style="-fx-padding: 40;">
+            <VBox spacing="20"
+                  maxWidth="450"
+                  style="-fx-background-color: white;
+                         -fx-background-radius: 12;
+                         -fx-padding: 36;
+                         -fx-border-color: #C8E6C9;
+                         -fx-border-radius: 12;
+                         -fx-border-width: 1;">
 
-                <VBox spacing="4">
-                    <Label text="Forgot Username"
-                           style="-fx-font-size:22; -fx-font-weight:bold; -fx-text-fill:#134E4A;"/>
-                    <Label text="Enter your registered email address and we will send you your username."
-                           wrapText="true"
-                           style="-fx-font-size:13; -fx-text-fill:#6B7280;"/>
-                </VBox>
+                <effect>
+                    <DropShadow color="#0000001A" radius="10" spread="0.0" width="20" height="20" offsetY="4"/>
+                </effect>
 
-                <VBox spacing="6">
+
+
+                <VBox spacing="8">
                     <HBox alignment="CENTER_LEFT">
                         <Label text="Email Address"
-                               style="-fx-font-size:13; -fx-text-fill:#374151;"/>
+                               style="-fx-font-size: 14; -fx-text-fill: #374151; -fx-font-weight: bold;"/>
                         <Region HBox.hgrow="ALWAYS"/>
-                        <Hyperlink text="Forgot password?"
-                                   onAction="#onForgotPassword"
-                                   style="-fx-font-size:12; -fx-text-fill:#0F766E; -fx-padding:0; -fx-border-width:0;"/>
+                        <Hyperlink text="Forgot User?"
+                                   onAction="#onSendUsername"
+                                   style="-fx-font-size: 13; -fx-text-fill: #2E7D32; -fx-padding: 0; -fx-border-width: 0;"/>
                     </HBox>
                     <TextField fx:id="emailField"
                                promptText="name@example.com"
-                               style="-fx-background-radius:8; -fx-padding:8;"/>
+                               style="-fx-background-radius: 8; -fx-padding: 12; -fx-border-color: #A5D6A7; -fx-border-radius: 8; -fx-background-color: #F9FAFB;"/>
                 </VBox>
 
                 <Label fx:id="statusLabel"
                        text=""
                        managed="false"
                        visible="false"
-                       style="-fx-font-size:12; -fx-wrap-text:true;"/>
+                       style="-fx-font-size: 13; -fx-wrap-text: true;"/>
 
                 <Button text="Send Username"
                         onAction="#onSendUsername"
                         maxWidth="Infinity"
-                        style="-fx-background-color:#0F766E;
-                               -fx-text-fill:white;
-                               -fx-font-weight:bold;
-                               -fx-background-radius:8;
-                               -fx-padding:10 16;"/>
+                        style="-fx-background-color: #4CAF50;
+                               -fx-text-fill: white;
+                               -fx-font-weight: bold;
+                               -fx-font-size: 15;
+                               -fx-background-radius: 8;
+                               -fx-padding: 12 16;
+                               -fx-cursor: hand;"/>
 
-                <HBox alignment="CENTER" style="-fx-padding: 10 0 0 0;">
+                <HBox alignment="CENTER" style="-fx-padding: 16 0 0 0;">
                     <Hyperlink text="← Back to Login"
                                onAction="#onBackToLogin"
-                               style="-fx-text-fill:#6B7280; -fx-font-size:13; -fx-padding:0; -fx-border-width:0;"/>
+                               style="-fx-text-fill: #6B7280; -fx-font-size: 14; -fx-padding: 0; -fx-border-width: 0; -fx-underline: true;"/>
                 </HBox>
 
             </VBox>

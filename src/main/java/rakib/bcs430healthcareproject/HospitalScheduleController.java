@@ -170,6 +170,11 @@ public class HospitalScheduleController implements Initializable {
 
         Appointment appointment = selectedSchedule.getSourceAppointment();
 
+        // Extract the service type to determine scheduling rules
+        String serviceType = valueOrDefault(appointment.getReferralType(),
+                valueOrDefault(appointment.getHospitalDepartment(),
+                        valueOrDefault(appointment.getReason(), "Hospital visit")));
+
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Reschedule Appointment");
         dialog.setHeaderText("Choose a new time for " + valueOrDefault(appointment.getPatientName(), "this patient"));
@@ -179,11 +184,10 @@ public class HospitalScheduleController implements Initializable {
 
         DatePicker dialogDatePicker = new DatePicker(resolveAppointmentDate(appointment));
         ComboBox<String> timeComboBox = new ComboBox<>();
-        timeComboBox.getItems().addAll(
-                "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM",
-                "11:30 AM", "01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM",
-                "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"
-        );
+
+        // Dynamically populate times based on the service type
+        populateTimeComboBox(timeComboBox, serviceType);
+
         timeComboBox.setEditable(true);
         timeComboBox.setValue(formatAppointmentTime(appointment));
 
@@ -212,6 +216,12 @@ public class HospitalScheduleController implements Initializable {
 
         if (selectedDate == null || selectedTime.isBlank()) {
             showAlert("Validation Error", "Please choose both a date and time for the reschedule.");
+            return;
+        }
+
+        // Validate the selected time before applying changes
+        if (!isTimeSlotValid(serviceType, selectedTime)) {
+            showAlert("Invalid Time", serviceType + " appointments are only available between 8:00 AM and 8:00 PM.");
             return;
         }
 
@@ -499,6 +509,49 @@ public class HospitalScheduleController implements Initializable {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    // --- NEW VALIDATION METHODS ADDED BELOW ---
+
+    private boolean isTimeSlotValid(String serviceType, String requestedTimeString) {
+        LocalTime requestedTime = parseTime(requestedTimeString);
+        if (requestedTime == null) return false;
+
+        // Emergency Care is available 24/7
+        if (serviceType != null && serviceType.equalsIgnoreCase("Emergency Care")) {
+            return true;
+        }
+
+        // All other services are restricted to 8:00 AM - 8:00 PM (20:00)
+        LocalTime openTime = LocalTime.of(8, 0);
+        LocalTime closeTime = LocalTime.of(20, 0);
+
+        // Returns true if the time is between 8 AM and 8 PM
+        return !requestedTime.isBefore(openTime) && !requestedTime.isAfter(closeTime);
+    }
+
+    private void populateTimeComboBox(ComboBox<String> timeCombo, String serviceType) {
+        timeCombo.getItems().clear();
+
+        LocalTime startTime;
+        LocalTime endTime;
+
+        if (serviceType != null && serviceType.equalsIgnoreCase("Emergency Care")) {
+            startTime = LocalTime.MIDNIGHT; // 00:00
+            endTime = LocalTime.of(23, 30); // 11:30 PM
+        } else {
+            startTime = LocalTime.of(8, 0); // 8:00 AM
+            endTime = LocalTime.of(20, 0);  // 8:00 PM
+        }
+
+        // Populate dropdown in 30-minute increments, formatting to string to match existing data types
+        LocalTime currentTime = startTime;
+        while (!currentTime.isAfter(endTime)) {
+            timeCombo.getItems().add(currentTime.format(TIME_FORMAT));
+            // Break to avoid infinite loop if dealing with 24/7 rollover
+            if (currentTime.equals(LocalTime.of(23, 30))) break;
+            currentTime = currentTime.plusMinutes(30);
+        }
     }
 
     @FXML private void onDashboard() { SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard"); }

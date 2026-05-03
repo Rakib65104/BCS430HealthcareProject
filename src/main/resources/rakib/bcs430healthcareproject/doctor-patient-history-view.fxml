@@ -2,6 +2,8 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
@@ -9,7 +11,6 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Priority?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
@@ -38,11 +39,7 @@
         <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
             <content>
                 <VBox spacing="18" style="-fx-padding: 24;">
-                    <padding>
-                        <Insets top="24" right="24" bottom="24" left="24"/>
-                    </padding>
 
-                    <!-- Header -->
                     <VBox spacing="8"
                           style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #dbeafe;">
                         <Label text="Patient Information"
@@ -51,7 +48,6 @@
                                style="-fx-font-size: 22; -fx-font-weight: bold; -fx-text-fill: #0F766E;" />
                     </VBox>
 
-                    <!-- Overview -->
                     <VBox spacing="14"
                           style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #dbeafe;">
                         <Label text="Overview"
@@ -73,7 +69,6 @@
                         </HBox>
                     </VBox>
 
-                    <!-- Personal Information -->
                     <VBox spacing="12"
                           style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #dbeafe;">
                         <Label text="Personal Information"
@@ -94,7 +89,6 @@
                         </GridPane>
                     </VBox>
 
-                    <!-- Contact Information -->
                     <VBox spacing="12"
                           style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #dbeafe;">
                         <Label text="Contact Information"
@@ -112,7 +106,6 @@
                         </GridPane>
                     </VBox>
 
-                    <!-- Insurance Information -->
                     <VBox spacing="12"
                           style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #dbeafe;">
                         <Label text="Insurance Information"
@@ -136,7 +129,6 @@
                         </GridPane>
                     </VBox>
 
-                    <!-- Medical Information -->
                     <VBox spacing="12"
                           style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #dbeafe;">
                         <Label text="Medical Information"
@@ -171,7 +163,6 @@
                         <TextArea fx:id="medicalHistoryArea" prefRowCount="5" />
                     </VBox>
 
-                    <!-- Emergency Contact -->
                     <VBox spacing="12"
                           style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #dbeafe;">
                         <Label text="Emergency Contact"
@@ -187,6 +178,61 @@
                             <Label text="Phone:" GridPane.rowIndex="2" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
                             <Label fx:id="emergencyContactPhoneLabel" GridPane.rowIndex="2" GridPane.columnIndex="1" />
                         </GridPane>
+                    </VBox>
+
+                    <VBox spacing="14"
+                          style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-color: #99f6e4;">
+                        <Label text="Refer Patient to Hospital"
+                               style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #0F766E;" />
+
+                        <Label text="Authorize this patient for a hospital visit and assign them to a specific department."
+                               style="-fx-text-fill: #64748B; -fx-font-size: 13;" />
+
+                        <GridPane hgap="20" vgap="14">
+                            <Label text="Hospital:" GridPane.rowIndex="0" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                            <ComboBox fx:id="hospitalComboBox"
+                                      promptText="Select hospital"
+                                      prefWidth="340"
+                                      GridPane.rowIndex="0"
+                                      GridPane.columnIndex="1" />
+
+                            <Label text="Department:" GridPane.rowIndex="1" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                            <ComboBox fx:id="departmentComboBox"
+                                      promptText="Select department"
+                                      prefWidth="340"
+                                      GridPane.rowIndex="1"
+                                      GridPane.columnIndex="1" />
+
+                            <Label text="Visit Date:" GridPane.rowIndex="2" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                            <DatePicker fx:id="visitDatePicker"
+                                        prefWidth="220"
+                                        GridPane.rowIndex="2"
+                                        GridPane.columnIndex="1" />
+
+                            <Label text="Visit Time:" GridPane.rowIndex="3" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                            <ComboBox fx:id="visitTimeComboBox"
+                                      promptText="Select time"
+                                      prefWidth="220"
+                                      GridPane.rowIndex="3"
+                                      GridPane.columnIndex="1" />
+                        </GridPane>
+
+                        <Label text="Referral Notes"
+                               style="-fx-font-size: 14; -fx-font-weight: bold;" />
+
+                        <TextArea fx:id="referralNotesArea"
+                                  promptText="Reason for referral, required tests, instructions, or notes..."
+                                  prefRowCount="4"
+                                  wrapText="true" />
+
+                        <Button text="Authorize Hospital Referral"
+                                onAction="#handleAuthorizeHospitalReferral"
+                                style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                                       -fx-text-fill: white;
+                                       -fx-font-size: 14;
+                                       -fx-font-weight: bold;
+                                       -fx-background-radius: 10;
+                                       -fx-padding: 10 20;" />
                     </VBox>
 
                     <Label fx:id="statusLabel"

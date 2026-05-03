@@ -1494,11 +1494,18 @@ public class FirebaseService {
                 if (message == null) {
                     throw new RuntimeException("Message cannot be null.");
                 }
-                if (message.getDoctorUid() == null || message.getDoctorUid().isBlank()) {
-                    throw new RuntimeException("Doctor ID is required.");
+                int participantCount = 0;
+                if (message.getDoctorUid() != null && !message.getDoctorUid().isBlank()) {
+                    participantCount++;
                 }
-                if (message.getPatientUid() == null || message.getPatientUid().isBlank()) {
-                    throw new RuntimeException("Patient ID is required.");
+                if (message.getPharmacyUid() != null && !message.getPharmacyUid().isBlank()) {
+                    participantCount++;
+                }
+                if (message.getPatientUid() != null && !message.getPatientUid().isBlank()) {
+                    participantCount++;
+                }
+                if (participantCount < 2) {
+                    throw new RuntimeException("At least two conversation participants are required.");
                 }
                 if (message.getMessageText() == null || message.getMessageText().isBlank()) {
                     throw new RuntimeException("Message text is required.");
@@ -1531,13 +1538,29 @@ public class FirebaseService {
      * Retrieves all messages between a doctor and patient.
      */
     public CompletableFuture<List<Message>> getMessagesBetweenDoctorAndPatient(String doctorUid, String patientUid) {
+        return getMessagesBetweenParticipants("DOCTOR", doctorUid, "PATIENT", patientUid);
+    }
+
+    public CompletableFuture<List<Message>> getMessagesBetweenParticipants(String firstRole,
+                                                                           String firstUid,
+                                                                           String secondRole,
+                                                                           String secondUid) {
         return CompletableFuture.supplyAsync(() -> {
             List<Message> messages = new ArrayList<>();
 
             try {
+                String firstField = messageParticipantField(firstRole);
+                String secondField = messageParticipantField(secondRole);
+                if (firstField == null || secondField == null) {
+                    throw new RuntimeException("Unsupported conversation role.");
+                }
+                if (firstUid == null || firstUid.isBlank() || secondUid == null || secondUid.isBlank()) {
+                    return messages;
+                }
+
                 QuerySnapshot snapshot = firestore.collection(MESSAGES_COLLECTION)
-                        .whereEqualTo("doctorUid", doctorUid)
-                        .whereEqualTo("patientUid", patientUid)
+                        .whereEqualTo(firstField, firstUid)
+                        .whereEqualTo(secondField, secondUid)
                         .get()
                         .get();
 
@@ -1557,6 +1580,51 @@ public class FirebaseService {
                 return messages;
             } catch (Exception e) {
                 throw new RuntimeException("Failed to retrieve messages: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<String> savePharmacyPatientMessage(Prescription prescription,
+                                                                PharmacyProfile pharmacyProfile,
+                                                                String messageText) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (prescription == null) {
+                    throw new RuntimeException("Prescription is required.");
+                }
+                if (pharmacyProfile == null || pharmacyProfile.getUid() == null || pharmacyProfile.getUid().isBlank()) {
+                    throw new RuntimeException("Pharmacy account is required.");
+                }
+                if (prescription.getPatientUid() == null || prescription.getPatientUid().isBlank()) {
+                    throw new RuntimeException("Patient is required.");
+                }
+                if (messageText == null || messageText.isBlank()) {
+                    throw new RuntimeException("Message text is required.");
+                }
+
+                Message message = new Message();
+                message.setPharmacyUid(pharmacyProfile.getUid());
+                message.setPharmacyName(pharmacyProfile.getPharmacyName());
+                message.setPatientUid(prescription.getPatientUid());
+                message.setPatientName(prescription.getPatientName());
+                message.setSenderUid(pharmacyProfile.getUid());
+                message.setSenderName(valueOrDefault(pharmacyProfile.getPharmacyName(), "Your pharmacy"));
+                message.setSenderRole("PHARMACY");
+                message.setMessageText(messageText.trim());
+                message.setCreatedAt(System.currentTimeMillis());
+                message.setRead(false);
+
+                String messageId = saveMessage(message).get();
+                notifyPatient(
+                        prescription.getPatientUid(),
+                        "Message from " + valueOrDefault(pharmacyProfile.getPharmacyName(), "your pharmacy"),
+                        messageText.trim(),
+                        "PHARMACY_MESSAGE",
+                        prescription.getPrescriptionId()
+                );
+                return messageId;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to send pharmacy message: " + e.getMessage(), e);
             }
         });
     }
@@ -1594,6 +1662,12 @@ public class FirebaseService {
                                 && !"DOCTOR".equalsIgnoreCase(msg.getSenderRole())) {
                             return true;
                         }
+                    } else if ("PHARMACY".equalsIgnoreCase(role)) {
+                        if (currentUid.equals(msg.getPharmacyUid())
+                                && msg.getSenderRole() != null
+                                && !"PHARMACY".equalsIgnoreCase(msg.getSenderRole())) {
+                            return true;
+                        }
                     }
                 }
 
@@ -1608,11 +1682,25 @@ public class FirebaseService {
      * Marks incoming messages as read for the current viewer.
      */
     public CompletableFuture<Void> markMessagesAsRead(String doctorUid, String patientUid, String viewerRole) {
+        return markMessagesAsReadBetweenParticipants("DOCTOR", doctorUid, "PATIENT", patientUid, viewerRole);
+    }
+
+    public CompletableFuture<Void> markMessagesAsReadBetweenParticipants(String firstRole,
+                                                                         String firstUid,
+                                                                         String secondRole,
+                                                                         String secondUid,
+                                                                         String viewerRole) {
         return CompletableFuture.runAsync(() -> {
             try {
+                String firstField = messageParticipantField(firstRole);
+                String secondField = messageParticipantField(secondRole);
+                if (firstField == null || secondField == null) {
+                    throw new RuntimeException("Unsupported conversation role.");
+                }
+
                 QuerySnapshot snapshot = firestore.collection(MESSAGES_COLLECTION)
-                        .whereEqualTo("doctorUid", doctorUid)
-                        .whereEqualTo("patientUid", patientUid)
+                        .whereEqualTo(firstField, firstUid)
+                        .whereEqualTo(secondField, secondUid)
                         .get()
                         .get();
 
@@ -1634,9 +1722,7 @@ public class FirebaseService {
 
                     boolean shouldMarkRead = false;
 
-                    if ("PATIENT".equalsIgnoreCase(viewerRole) && !"PATIENT".equalsIgnoreCase(senderRole)) {
-                        shouldMarkRead = true;
-                    } else if ("DOCTOR".equalsIgnoreCase(viewerRole) && !"DOCTOR".equalsIgnoreCase(senderRole)) {
+                    if (!viewerRole.equalsIgnoreCase(senderRole)) {
                         shouldMarkRead = true;
                     }
 
@@ -1648,6 +1734,19 @@ public class FirebaseService {
                 throw new RuntimeException("Failed to mark messages as read: " + e.getMessage(), e);
             }
         });
+    }
+
+    private String messageParticipantField(String role) {
+        if ("DOCTOR".equalsIgnoreCase(role)) {
+            return "doctorUid";
+        }
+        if ("PATIENT".equalsIgnoreCase(role)) {
+            return "patientUid";
+        }
+        if ("PHARMACY".equalsIgnoreCase(role)) {
+            return "pharmacyUid";
+        }
+        return null;
     }
 
     public CompletableFuture<List<Prescription>> getPatientPrescriptions(String patientUid) {
@@ -1820,8 +1919,103 @@ public class FirebaseService {
                         .document(prescriptionId)
                         .set(prescription)
                         .get();
+
+                notifyPatient(
+                        prescription.getPatientUid(),
+                        "Prescription Ready for Pickup",
+                        valueOrDefault(prescription.getMedicationName(), "Your prescription")
+                                + " is ready for pickup at "
+                                + valueOrDefault(pharmacyProfile.getPharmacyName(), "your pharmacy") + ".",
+                        "PRESCRIPTION_READY",
+                        prescriptionId
+                );
             } catch (Exception e) {
                 throw new RuntimeException("Failed to fill prescription: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    public CompletableFuture<Void> confirmPrescriptionPickup(String prescriptionId,
+                                                             PharmacyProfile pharmacyProfile,
+                                                             String patientName,
+                                                             String patientDateOfBirth) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                if (prescriptionId == null || prescriptionId.isBlank()) {
+                    throw new RuntimeException("Prescription ID is required.");
+                }
+                if (pharmacyProfile == null || pharmacyProfile.getAddressNormalized() == null || pharmacyProfile.getAddressNormalized().isBlank()) {
+                    throw new RuntimeException("Pharmacy account is required.");
+                }
+                if (patientName == null || patientName.isBlank()) {
+                    throw new RuntimeException("Patient name is required.");
+                }
+                if (patientDateOfBirth == null || patientDateOfBirth.isBlank()) {
+                    throw new RuntimeException("Patient date of birth is required.");
+                }
+
+                DocumentSnapshot document = firestore.collection(PRESCRIPTIONS_COLLECTION)
+                        .document(prescriptionId)
+                        .get()
+                        .get();
+
+                if (!document.exists()) {
+                    throw new RuntimeException("Prescription not found.");
+                }
+
+                Prescription prescription = document.toObject(Prescription.class);
+                if (prescription == null) {
+                    throw new RuntimeException("Prescription could not be loaded.");
+                }
+                prescription.setPrescriptionId(document.getId());
+
+                String prescriptionAddress = prescription.getPharmacyAddressNormalized();
+                if (prescriptionAddress == null || prescriptionAddress.isBlank()) {
+                    prescriptionAddress = AddressNormalizer.normalize(prescription.getPharmacyAddress());
+                    prescription.setPharmacyAddressNormalized(prescriptionAddress);
+                }
+
+                if (!pharmacyProfile.getAddressNormalized().equals(prescriptionAddress)) {
+                    throw new RuntimeException("This prescription is not assigned to your pharmacy.");
+                }
+                if (!Prescription.STATUS_FILLED.equalsIgnoreCase(prescription.getStatus())) {
+                    throw new RuntimeException("Only filled prescriptions can be confirmed for pickup.");
+                }
+
+                PatientProfile patientProfile = getPatientProfile(prescription.getPatientUid()).get();
+                String storedName = patientProfile != null ? patientProfile.getName() : prescription.getPatientName();
+                String storedDob = patientProfile != null ? patientProfile.getDateOfBirth() : null;
+
+                if (!normalizePersonName(storedName).equals(normalizePersonName(patientName))) {
+                    throw new RuntimeException("Patient name does not match the prescription profile.");
+                }
+                if (storedDob == null || storedDob.isBlank() || !storedDob.trim().equals(patientDateOfBirth.trim())) {
+                    throw new RuntimeException("Patient date of birth does not match the prescription profile.");
+                }
+
+                long pickedUpAt = System.currentTimeMillis();
+                prescription.setStatus(Prescription.STATUS_PICKED_UP);
+                prescription.setPickedUpAt(pickedUpAt);
+                prescription.setPickedUpByPatientName(patientName.trim());
+                prescription.setPickedUpPatientDateOfBirth(patientDateOfBirth.trim());
+                prescription.setPickupConfirmedBy(pharmacyProfile.getPharmacyName());
+
+                firestore.collection(PRESCRIPTIONS_COLLECTION)
+                        .document(prescriptionId)
+                        .set(prescription)
+                        .get();
+
+                notifyPatient(
+                        prescription.getPatientUid(),
+                        "Prescription Picked Up",
+                        valueOrDefault(prescription.getMedicationName(), "Your prescription")
+                                + " was marked as picked up at "
+                                + valueOrDefault(pharmacyProfile.getPharmacyName(), "your pharmacy") + ".",
+                        "PRESCRIPTION_PICKED_UP",
+                        prescriptionId
+                );
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to confirm pickup: " + e.getMessage(), e);
             }
         });
     }
@@ -1878,8 +2072,9 @@ public class FirebaseService {
                 if ("PHARMACY".equalsIgnoreCase(actorRole)) {
                     String status = sourcePrescription.getStatus();
                     if (!Prescription.STATUS_FILLED.equalsIgnoreCase(status)
+                            && !Prescription.STATUS_PICKED_UP.equalsIgnoreCase(status)
                             && !Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status)) {
-                        throw new RuntimeException("Only filled prescriptions can be refilled.");
+                        throw new RuntimeException("Only filled or picked up prescriptions can be refilled.");
                     }
 
                     Integer refillIntervalDays = PrescriptionRefillSupport.getRefillIntervalDays(sourcePrescription);
@@ -2328,6 +2523,10 @@ public class FirebaseService {
 
     private String valueOrDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String normalizePersonName(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ").toLowerCase();
     }
 
     public CompletableFuture<String> addHospitalDepartment(HospitalDepartment department) {

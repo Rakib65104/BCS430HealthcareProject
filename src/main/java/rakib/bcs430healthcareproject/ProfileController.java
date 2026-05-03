@@ -8,6 +8,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,13 @@ public class ProfileController {
     @FXML private ComboBox<String> insuranceCompanyComboBox;
     @FXML private ComboBox<String> insurancePlanTypeComboBox;
     @FXML private TextField insuranceGroupNumberField;
+    @FXML private TextField secondaryInsuranceNumberField;
+    @FXML private ComboBox<String> secondaryInsuranceCompanyComboBox;
+    @FXML private ComboBox<String> secondaryInsurancePlanTypeComboBox;
+    @FXML private TextField secondaryInsuranceGroupNumberField;
+    @FXML private VBox secondaryInsuranceSection;
+    @FXML private Button addSecondaryInsuranceButton;
+    @FXML private Button removeSecondaryInsuranceButton;
     @FXML private ComboBox<PharmacyOption> preferredPickupPharmacyComboBox;
     @FXML private TextField emailField;
     @FXML private TextField phoneField;
@@ -52,6 +60,7 @@ public class ProfileController {
     private boolean isDoctorPatientView = false;
     private boolean isHospitalReadOnlyView = false;
     private boolean isPharmacyReadOnlyView = false;
+    private boolean secondaryInsuranceVisible = false;
     private List<PharmacyOption> pharmacyOptions = new ArrayList<>();
 
     @FXML
@@ -66,10 +75,17 @@ public class ProfileController {
         insuranceCompanyComboBox.getItems().addAll(InsuranceSupport.commonInsuranceProviders());
         insuranceCompanyComboBox.setEditable(true);
         insurancePlanTypeComboBox.getItems().addAll("Not specified", "HMO", "PPO", "EPO", "POS", "HDHP", "Medicaid", "Medicare", "Other");
+        secondaryInsuranceCompanyComboBox.getItems().addAll(InsuranceSupport.commonInsuranceProviders());
+        secondaryInsuranceCompanyComboBox.setEditable(true);
+        secondaryInsurancePlanTypeComboBox.getItems().addAll("Not specified", "HMO", "PPO", "EPO", "POS", "HDHP", "Medicaid", "Medicare", "Other");
         preferredPickupPharmacyComboBox.getItems().add(new PharmacyOption(null, "No preferred pharmacy selected", "", ""));
         insuranceCompanyComboBox.valueProperty().addListener((obs, oldVal, newVal) -> updateInsuranceNumberAvailability());
         if (insuranceCompanyComboBox.getEditor() != null) {
             insuranceCompanyComboBox.getEditor().textProperty().addListener((obs, oldVal, newVal) -> updateInsuranceNumberAvailability());
+        }
+        secondaryInsuranceCompanyComboBox.valueProperty().addListener((obs, oldVal, newVal) -> updateInsuranceNumberAvailability());
+        if (secondaryInsuranceCompanyComboBox.getEditor() != null) {
+            secondaryInsuranceCompanyComboBox.getEditor().textProperty().addListener((obs, oldVal, newVal) -> updateInsuranceNumberAvailability());
         }
         
         // Setup height dropdown
@@ -146,6 +162,12 @@ public class ProfileController {
         insuranceCompanyComboBox.setValue(currentProfile.getInsuranceCompany() != null ? currentProfile.getInsuranceCompany() : "");
         insurancePlanTypeComboBox.setValue(currentProfile.getInsurancePlanType() != null ? currentProfile.getInsurancePlanType() : "Not specified");
         insuranceGroupNumberField.setText(currentProfile.getInsuranceGroupNumber() != null ? currentProfile.getInsuranceGroupNumber() : "");
+        secondaryInsuranceNumberField.setText(currentProfile.getSecondaryInsuranceNumber() != null ? currentProfile.getSecondaryInsuranceNumber() : "");
+        secondaryInsuranceCompanyComboBox.setValue(currentProfile.getSecondaryInsuranceCompany() != null ? currentProfile.getSecondaryInsuranceCompany() : "");
+        secondaryInsurancePlanTypeComboBox.setValue(currentProfile.getSecondaryInsurancePlanType() != null ? currentProfile.getSecondaryInsurancePlanType() : "Not specified");
+        secondaryInsuranceGroupNumberField.setText(currentProfile.getSecondaryInsuranceGroupNumber() != null ? currentProfile.getSecondaryInsuranceGroupNumber() : "");
+        secondaryInsuranceVisible = hasSecondaryInsuranceData();
+        updateSecondaryInsuranceVisibility();
         selectPreferredPharmacy();
         
         String bloodType = currentProfile.getBloodType() != null ? currentProfile.getBloodType() : "Not specified";
@@ -240,6 +262,18 @@ public class ProfileController {
         
         currentProfile.setInsuranceCompany(insuranceCompany);
 
+        String secondaryInsuranceCompany = readInsuranceCompany(secondaryInsuranceCompanyComboBox);
+        if (secondaryInsuranceCompany == null || secondaryInsuranceCompany.isBlank()) {
+            currentProfile.setSecondaryInsuranceNumber(null);
+            currentProfile.setSecondaryInsurancePlanType(null);
+            currentProfile.setSecondaryInsuranceGroupNumber(null);
+        } else if (secondaryInsuranceNumberField.getText() != null) {
+            currentProfile.setSecondaryInsuranceNumber(secondaryInsuranceNumberField.getText().trim());
+            currentProfile.setSecondaryInsurancePlanType(readInsurancePlanType(secondaryInsurancePlanTypeComboBox));
+            currentProfile.setSecondaryInsuranceGroupNumber(readTrimmedText(secondaryInsuranceGroupNumberField));
+        }
+        currentProfile.setSecondaryInsuranceCompany(secondaryInsuranceCompany);
+
         PharmacyOption preferredOption = preferredPickupPharmacyComboBox.getValue();
         if (preferredOption == null || preferredOption.uid == null || preferredOption.uid.isBlank()) {
             currentProfile.setPreferredPharmacyUid(null);
@@ -327,6 +361,33 @@ public class ProfileController {
     }
 
     @FXML
+    private void onAddSecondaryInsurance() {
+        if (isReadOnlyPatientView()) {
+            showStatus(readOnlyViewMessage(), true);
+            return;
+        }
+        secondaryInsuranceVisible = true;
+        updateSecondaryInsuranceVisibility();
+        if (!isEditMode) {
+            isEditMode = true;
+            setFieldsEditable(true);
+            updateButtonVisibility();
+        }
+        secondaryInsuranceCompanyComboBox.requestFocus();
+    }
+
+    @FXML
+    private void onRemoveSecondaryInsurance() {
+        if (isReadOnlyPatientView()) {
+            showStatus(readOnlyViewMessage(), true);
+            return;
+        }
+        secondaryInsuranceVisible = false;
+        clearSecondaryInsuranceFields();
+        updateSecondaryInsuranceVisibility();
+    }
+
+    @FXML
     private void onBack() {
         if (isDoctorPatientView) {
             userContext.clearSelectedPatientProfile();
@@ -371,6 +432,13 @@ public class ProfileController {
         insuranceCompanyComboBox.setEditable(editable);
         insurancePlanTypeComboBox.setDisable(!editable);
         insuranceGroupNumberField.setEditable(editable);
+        secondaryInsuranceNumberField.setEditable(editable);
+        secondaryInsuranceCompanyComboBox.setDisable(!editable);
+        secondaryInsuranceCompanyComboBox.setEditable(editable);
+        secondaryInsurancePlanTypeComboBox.setDisable(!editable);
+        secondaryInsuranceGroupNumberField.setEditable(editable);
+        addSecondaryInsuranceButton.setDisable(!editable && !secondaryInsuranceVisible);
+        removeSecondaryInsuranceButton.setDisable(!editable);
         preferredPickupPharmacyComboBox.setDisable(!editable);
         bloodTypeComboBox.setDisable(!editable);
         vaccinationStatusComboBox.setDisable(!editable);
@@ -381,6 +449,7 @@ public class ProfileController {
         currentMedicationsArea.setEditable(editable);
         chronicConditionsArea.setEditable(editable);
         updateInsuranceNumberAvailability();
+        updateSecondaryInsuranceVisibility();
     }
 
     /**
@@ -522,20 +591,32 @@ public class ProfileController {
     }
 
     private String readInsuranceCompany() {
-        String editorValue = insuranceCompanyComboBox.getEditor() == null
+        return readInsuranceCompany(insuranceCompanyComboBox);
+    }
+
+    private String readInsuranceCompany(ComboBox<String> comboBox) {
+        if (comboBox == null) {
+            return null;
+        }
+
+        String editorValue = comboBox.getEditor() == null
                 ? null
-                : insuranceCompanyComboBox.getEditor().getText();
+                : comboBox.getEditor().getText();
 
         if (editorValue != null && !editorValue.isBlank()) {
             return editorValue.trim();
         }
 
-        String selectedValue = insuranceCompanyComboBox.getValue();
+        String selectedValue = comboBox.getValue();
         return selectedValue == null || selectedValue.isBlank() ? null : selectedValue.trim();
     }
 
     private String readInsurancePlanType() {
-        String selectedValue = insurancePlanTypeComboBox.getValue();
+        return readInsurancePlanType(insurancePlanTypeComboBox);
+    }
+
+    private String readInsurancePlanType(ComboBox<String> comboBox) {
+        String selectedValue = comboBox == null ? null : comboBox.getValue();
         if (selectedValue == null || selectedValue.isBlank() || "Not specified".equalsIgnoreCase(selectedValue.trim())) {
             return null;
         }
@@ -572,6 +653,70 @@ public class ProfileController {
             insurancePlanTypeComboBox.setValue("Not specified");
             insuranceGroupNumberField.clear();
         }
+
+        boolean hasSecondaryInsuranceCompany = readInsuranceCompany(secondaryInsuranceCompanyComboBox) != null;
+        boolean allowSecondaryEditing = !isReadOnlyPatientView() && isEditMode && hasSecondaryInsuranceCompany;
+
+        secondaryInsuranceNumberField.setEditable(allowSecondaryEditing);
+        secondaryInsuranceNumberField.setDisable(!allowSecondaryEditing && !hasSecondaryInsuranceCompany && !isReadOnlyPatientView());
+        secondaryInsuranceNumberField.setPromptText(hasSecondaryInsuranceCompany
+                ? "Enter secondary insurance number"
+                : "Select secondary insurance company first");
+        secondaryInsurancePlanTypeComboBox.setDisable(!allowSecondaryEditing);
+        secondaryInsuranceGroupNumberField.setEditable(allowSecondaryEditing);
+        secondaryInsuranceGroupNumberField.setDisable(!allowSecondaryEditing && !hasSecondaryInsuranceCompany && !isReadOnlyPatientView());
+        secondaryInsuranceGroupNumberField.setPromptText(hasSecondaryInsuranceCompany
+                ? "Enter secondary group number"
+                : "Select secondary insurance company first");
+
+        if (!hasSecondaryInsuranceCompany && !isReadOnlyPatientView()) {
+            secondaryInsuranceNumberField.clear();
+            secondaryInsurancePlanTypeComboBox.setValue("Not specified");
+            secondaryInsuranceGroupNumberField.clear();
+        }
+    }
+
+    private void updateSecondaryInsuranceVisibility() {
+        boolean visible = secondaryInsuranceVisible || hasSecondaryInsuranceData();
+        secondaryInsuranceSection.setManaged(visible);
+        secondaryInsuranceSection.setVisible(visible);
+        addSecondaryInsuranceButton.setManaged(!visible && !isReadOnlyPatientView());
+        addSecondaryInsuranceButton.setVisible(!visible && !isReadOnlyPatientView());
+        removeSecondaryInsuranceButton.setManaged(visible && !isReadOnlyPatientView());
+        removeSecondaryInsuranceButton.setVisible(visible && !isReadOnlyPatientView());
+    }
+
+    private boolean hasSecondaryInsuranceData() {
+        if (currentProfile != null) {
+            return hasText(currentProfile.getSecondaryInsuranceCompany())
+                    || hasText(currentProfile.getSecondaryInsuranceNumber())
+                    || hasText(currentProfile.getSecondaryInsurancePlanType())
+                    || hasText(currentProfile.getSecondaryInsuranceGroupNumber());
+        }
+        return hasText(readInsuranceCompany(secondaryInsuranceCompanyComboBox))
+                || hasText(readTrimmedText(secondaryInsuranceNumberField))
+                || hasText(readInsurancePlanType(secondaryInsurancePlanTypeComboBox))
+                || hasText(readTrimmedText(secondaryInsuranceGroupNumberField));
+    }
+
+    private void clearSecondaryInsuranceFields() {
+        secondaryInsuranceCompanyComboBox.setValue("");
+        if (secondaryInsuranceCompanyComboBox.getEditor() != null) {
+            secondaryInsuranceCompanyComboBox.getEditor().clear();
+        }
+        secondaryInsuranceNumberField.clear();
+        secondaryInsurancePlanTypeComboBox.setValue("Not specified");
+        secondaryInsuranceGroupNumberField.clear();
+        if (currentProfile != null) {
+            currentProfile.setSecondaryInsuranceCompany(null);
+            currentProfile.setSecondaryInsuranceNumber(null);
+            currentProfile.setSecondaryInsurancePlanType(null);
+            currentProfile.setSecondaryInsuranceGroupNumber(null);
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private boolean isReadOnlyPatientView() {

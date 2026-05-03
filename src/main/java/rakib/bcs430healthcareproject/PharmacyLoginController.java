@@ -39,7 +39,7 @@ public class PharmacyLoginController {
                             return profile;
                         }))
                 .thenAccept(profile -> Platform.runLater(() ->
-                        SceneRouter.go("pharmacy-dashboard-view.fxml", "Pharmacy Portal")))
+                        SceneRouter.go("pharmacy-prescriptions-view.fxml", "Pharmacy Portal")))
                 .exceptionally(ex -> {
                     Platform.runLater(() -> showMessage(cleanErrorMessage(ex), true));
                     return null;

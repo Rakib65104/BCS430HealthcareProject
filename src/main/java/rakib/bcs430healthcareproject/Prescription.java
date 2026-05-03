@@ -7,6 +7,7 @@ public class Prescription {
 
     public static final String STATUS_SENT = "SENT";
     public static final String STATUS_FILLED = "FILLED";
+    public static final String STATUS_PICKED_UP = "PICKED_UP";
     public static final String STATUS_REFILL_REQUESTED = "REFILL_REQUESTED";
 
     private String prescriptionId;
@@ -31,6 +32,10 @@ public class Prescription {
     private String status;
     private String filledBy;
     private Long filledAt;
+    private String pickedUpByPatientName;
+    private String pickedUpPatientDateOfBirth;
+    private String pickupConfirmedBy;
+    private Long pickedUpAt;
     private Long nextRefillEligibleAt;
     private Long createdAt;
     private Boolean refillRequested;
@@ -214,6 +219,38 @@ public class Prescription {
 
     public void setFilledAt(Long filledAt) {
         this.filledAt = filledAt;
+    }
+
+    public String getPickedUpByPatientName() {
+        return pickedUpByPatientName;
+    }
+
+    public void setPickedUpByPatientName(String pickedUpByPatientName) {
+        this.pickedUpByPatientName = pickedUpByPatientName;
+    }
+
+    public String getPickedUpPatientDateOfBirth() {
+        return pickedUpPatientDateOfBirth;
+    }
+
+    public void setPickedUpPatientDateOfBirth(String pickedUpPatientDateOfBirth) {
+        this.pickedUpPatientDateOfBirth = pickedUpPatientDateOfBirth;
+    }
+
+    public String getPickupConfirmedBy() {
+        return pickupConfirmedBy;
+    }
+
+    public void setPickupConfirmedBy(String pickupConfirmedBy) {
+        this.pickupConfirmedBy = pickupConfirmedBy;
+    }
+
+    public Long getPickedUpAt() {
+        return pickedUpAt;
+    }
+
+    public void setPickedUpAt(Long pickedUpAt) {
+        this.pickedUpAt = pickedUpAt;
     }
 
     public Long getNextRefillEligibleAt() {

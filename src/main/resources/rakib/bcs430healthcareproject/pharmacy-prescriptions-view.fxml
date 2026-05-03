@@ -21,6 +21,9 @@
                     style="-fx-background-color: white; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;" />
             <Label text="Pharmacy Portal"
                    style="-fx-text-fill: white; -fx-font-size: 22; -fx-font-weight: bold;" />
+            <Button text="Messages"
+                    onAction="#onMessages"
+                    style="-fx-background-color: #CCFBF1; -fx-text-fill: #0F766E; -fx-font-size: 13; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;" />
             <Region HBox.hgrow="ALWAYS" />
             <VBox spacing="2" style="-fx-alignment: center-right;">
                 <Label fx:id="pharmacyNameLabel"

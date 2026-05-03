@@ -61,8 +61,7 @@ public class LoginController {
                                     return null;
                                 });
 
-                    } else {
-                        // Load doctor profile then route
+                    } else if ("DOCTOR".equals(result.getRole())) {
                         firebaseService.getDoctorProfile(result.getUid())
                                 .thenAccept(doctorProfile -> Platform.runLater(() -> {
                                     UserContext.getInstance().setDoctorUserData(result.getUid(), doctorProfile);
@@ -70,6 +69,26 @@ public class LoginController {
                                 }))
                                 .exceptionally(e -> {
                                     Platform.runLater(() -> showError("Failed to load doctor profile: " + e.getMessage()));
+                                    return null;
+                                });
+                    } else if ("PHARMACY".equals(result.getRole())) {
+                        firebaseService.getPharmacyProfile(result.getUid())
+                                .thenAccept(pharmacyProfile -> Platform.runLater(() -> {
+                                    UserContext.getInstance().setPharmacyUserData(result.getUid(), pharmacyProfile);
+                                    SceneRouter.go("pharmacy-prescriptions-view.fxml", "Pharmacy Portal");
+                                }))
+                                .exceptionally(e -> {
+                                    Platform.runLater(() -> showError("Failed to load pharmacy profile: " + e.getMessage()));
+                                    return null;
+                                });
+                    } else if ("HOSPITAL".equals(result.getRole())) {
+                        firebaseService.getHospitalProfile(result.getUid())
+                                .thenAccept(hospitalProfile -> Platform.runLater(() -> {
+                                    UserContext.getInstance().setHospitalUserData(result.getUid(), hospitalProfile);
+                                    SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard");
+                                }))
+                                .exceptionally(e -> {
+                                    Platform.runLater(() -> showError("Failed to load hospital profile: " + e.getMessage()));
                                     return null;
                                 });
                     }

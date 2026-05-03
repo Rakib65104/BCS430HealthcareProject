@@ -136,6 +136,13 @@ public class PatientPrescriptionsController {
             card.getChildren().add(filledLabel);
         }
 
+        if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
+            Label pickedUpLabel = new Label("Picked up: " + formatTimestamp(prescription.getPickedUpAt())
+                    + " at " + valueOrDefault(prescription.getPharmacyName(), "your pharmacy"));
+            pickedUpLabel.setStyle("-fx-text-fill: #1D4ED8; -fx-font-size: 12; -fx-font-weight: bold;");
+            card.getChildren().add(pickedUpLabel);
+        }
+
         String refillAvailability = buildRefillAvailabilityMessage(prescription);
         if (refillAvailability != null) {
             Label refillAvailabilityLabel = new Label(refillAvailability);
@@ -155,6 +162,9 @@ public class PatientPrescriptionsController {
     private String getStatusStyle(String status) {
         if (Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status)) {
             return "-fx-background-color: #DBEAFE; -fx-text-fill: #1D4ED8; -fx-font-size: 12; -fx-font-weight: bold; -fx-padding: 4 10; -fx-background-radius: 12;";
+        }
+        if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(status)) {
+            return "-fx-background-color: #E0E7FF; -fx-text-fill: #3730A3; -fx-font-size: 12; -fx-font-weight: bold; -fx-padding: 4 10; -fx-background-radius: 12;";
         }
         if (Prescription.STATUS_FILLED.equalsIgnoreCase(status)) {
             return "-fx-background-color: #DCFCE7; -fx-text-fill: #166534; -fx-font-size: 12; -fx-font-weight: bold; -fx-padding: 4 10; -fx-background-radius: 12;";
@@ -253,6 +263,9 @@ public class PatientPrescriptionsController {
         if (Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status)) {
             return "REFILL REQUESTED";
         }
+        if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(status)) {
+            return "PICKED UP";
+        }
         return valueOrDefault(status, Prescription.STATUS_SENT);
     }
 
@@ -268,6 +281,7 @@ public class PatientPrescriptionsController {
 
         String status = prescription.getStatus();
         return Prescription.STATUS_FILLED.equalsIgnoreCase(status)
+                || Prescription.STATUS_PICKED_UP.equalsIgnoreCase(status)
                 || Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status);
     }
 

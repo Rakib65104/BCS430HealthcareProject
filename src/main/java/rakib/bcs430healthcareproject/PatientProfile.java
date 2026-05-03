@@ -29,6 +29,10 @@ public class PatientProfile {
     private String insuranceCompany;
     private String insurancePlanType;
     private String insuranceGroupNumber;
+    private String secondaryInsuranceNumber;
+    private String secondaryInsuranceCompany;
+    private String secondaryInsurancePlanType;
+    private String secondaryInsuranceGroupNumber;
     private String preferredPharmacyUid;
     private String preferredPharmacyName;
     private String preferredPharmacyAddress;
@@ -112,6 +116,18 @@ public class PatientProfile {
     public String getInsuranceGroupNumber() { return insuranceGroupNumber; }
     public void setInsuranceGroupNumber(String insuranceGroupNumber) { this.insuranceGroupNumber = insuranceGroupNumber; }
 
+    public String getSecondaryInsuranceNumber() { return secondaryInsuranceNumber; }
+    public void setSecondaryInsuranceNumber(String secondaryInsuranceNumber) { this.secondaryInsuranceNumber = secondaryInsuranceNumber; }
+
+    public String getSecondaryInsuranceCompany() { return secondaryInsuranceCompany; }
+    public void setSecondaryInsuranceCompany(String secondaryInsuranceCompany) { this.secondaryInsuranceCompany = secondaryInsuranceCompany; }
+
+    public String getSecondaryInsurancePlanType() { return secondaryInsurancePlanType; }
+    public void setSecondaryInsurancePlanType(String secondaryInsurancePlanType) { this.secondaryInsurancePlanType = secondaryInsurancePlanType; }
+
+    public String getSecondaryInsuranceGroupNumber() { return secondaryInsuranceGroupNumber; }
+    public void setSecondaryInsuranceGroupNumber(String secondaryInsuranceGroupNumber) { this.secondaryInsuranceGroupNumber = secondaryInsuranceGroupNumber; }
+
     public String getPreferredPharmacyUid() { return preferredPharmacyUid; }
     public void setPreferredPharmacyUid(String preferredPharmacyUid) { this.preferredPharmacyUid = preferredPharmacyUid; }
 
@@ -184,6 +200,10 @@ public class PatientProfile {
         result.put("insuranceCompany", insuranceCompany);
         result.put("insurancePlanType", insurancePlanType);
         result.put("insuranceGroupNumber", insuranceGroupNumber);
+        result.put("secondaryInsuranceNumber", secondaryInsuranceNumber);
+        result.put("secondaryInsuranceCompany", secondaryInsuranceCompany);
+        result.put("secondaryInsurancePlanType", secondaryInsurancePlanType);
+        result.put("secondaryInsuranceGroupNumber", secondaryInsuranceGroupNumber);
         result.put("preferredPharmacyUid", preferredPharmacyUid);
         result.put("preferredPharmacyName", preferredPharmacyName);
         result.put("preferredPharmacyAddress", preferredPharmacyAddress);

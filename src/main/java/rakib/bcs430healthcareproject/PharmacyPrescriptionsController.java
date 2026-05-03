@@ -4,8 +4,11 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -16,6 +19,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Controller for a simple pharmacy portal that can fill prescriptions.
@@ -150,11 +154,33 @@ public class PharmacyPrescriptionsController {
                     + " by " + valueOrDefault(prescription.getFilledBy(), valueOrDefault(prescription.getPharmacyName(), "Pharmacy")));
             filledLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 12; -fx-font-weight: bold;");
             card.getChildren().add(filledLabel);
+
+            if (Prescription.STATUS_FILLED.equalsIgnoreCase(prescription.getStatus())) {
+                Button pickupButton = new Button("Confirm Patient Pickup");
+                pickupButton.setStyle("-fx-background-color: #0EA5E9; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
+                pickupButton.setOnAction(event -> confirmPatientPickup(prescription, pickupButton));
+                actionRow.getChildren().add(pickupButton);
+            }
         } else {
             Button fillButton = new Button("Mark Filled");
             fillButton.setStyle("-fx-background-color: #14B8A6; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
             fillButton.setOnAction(event -> markPrescriptionFilled(prescription, fillButton));
             actionRow.getChildren().add(fillButton);
+        }
+
+        if (!Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
+            Button messageButton = new Button("Message Patient");
+            messageButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
+            messageButton.setDisable(prescription.getPatientUid() == null || prescription.getPatientUid().isBlank());
+            messageButton.setOnAction(event -> messagePatient(prescription, messageButton));
+            actionRow.getChildren().add(messageButton);
+        }
+
+        if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
+            Label pickedUpLabel = new Label("Picked up: " + formatTimestamp(prescription.getPickedUpAt())
+                    + " | Confirmed by " + valueOrDefault(prescription.getPickupConfirmedBy(), valueOrDefault(prescription.getPharmacyName(), "Pharmacy")));
+            pickedUpLabel.setStyle("-fx-text-fill: #1D4ED8; -fx-font-size: 12; -fx-font-weight: bold;");
+            card.getChildren().add(pickedUpLabel);
         }
 
         if (canProcessRefillRequest(prescription)) {
@@ -217,6 +243,110 @@ public class PharmacyPrescriptionsController {
                 });
     }
 
+    private void messagePatient(Prescription prescription, Button messageButton) {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Message Patient");
+        dialog.setHeaderText("Send a prescription message to " + valueOrDefault(prescription.getPatientName(), "the patient"));
+
+        ButtonType sendButtonType = new ButtonType("Send", ButtonType.OK.getButtonData());
+        dialog.getDialogPane().getButtonTypes().addAll(sendButtonType, ButtonType.CANCEL);
+
+        TextArea messageArea = new TextArea();
+        messageArea.setWrapText(true);
+        messageArea.setPrefRowCount(5);
+        messageArea.setText("Your prescription for " + valueOrDefault(getMedicationName(prescription), "your medication")
+                + " is ready to be picked up at "
+                + valueOrDefault(pharmacyProfile.getPharmacyName(), "our pharmacy") + ".");
+
+        VBox content = new VBox(8, new Label("Message"), messageArea);
+        content.setPadding(new Insets(10));
+        dialog.getDialogPane().setContent(content);
+        dialog.setResultConverter(button -> button == sendButtonType ? messageArea.getText() : null);
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        String messageText = result.get() == null ? "" : result.get().trim();
+        if (messageText.isBlank()) {
+            showStatus("Message cannot be empty.", true);
+            return;
+        }
+
+        messageButton.setDisable(true);
+        showStatus("Sending message...", false);
+        firebaseService.savePharmacyPatientMessage(prescription, pharmacyProfile, messageText)
+                .thenRun(() -> Platform.runLater(() -> showStatus("Message sent to patient.", false)))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> {
+                        messageButton.setDisable(false);
+                        showStatus("Failed to send message: " + cleanErrorMessage(e), true);
+                    });
+                    return null;
+                });
+    }
+
+    private void confirmPatientPickup(Prescription prescription, Button pickupButton) {
+        Dialog<PickupConfirmation> dialog = new Dialog<>();
+        dialog.setTitle("Confirm Patient Pickup");
+        dialog.setHeaderText("Verify the patient before marking this prescription picked up.");
+
+        ButtonType confirmButtonType = new ButtonType("Confirm Pickup", ButtonType.OK.getButtonData());
+        dialog.getDialogPane().getButtonTypes().addAll(confirmButtonType, ButtonType.CANCEL);
+
+        TextField patientNameField = new TextField();
+        patientNameField.setPromptText("Patient full name");
+        TextField dateOfBirthField = new TextField();
+        dateOfBirthField.setPromptText("YYYY-MM-DD");
+
+        VBox content = new VBox(8,
+                new Label("Patient Name"),
+                patientNameField,
+                new Label("Date of Birth (YYYY-MM-DD)"),
+                dateOfBirthField);
+        content.setPadding(new Insets(10));
+        dialog.getDialogPane().setContent(content);
+        dialog.setResultConverter(button -> {
+            if (button != confirmButtonType) {
+                return null;
+            }
+            return new PickupConfirmation(
+                    patientNameField.getText(),
+                    dateOfBirthField.getText()
+            );
+        });
+
+        Optional<PickupConfirmation> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        PickupConfirmation confirmation = result.get();
+        if (confirmation.patientName == null || confirmation.patientName.trim().isBlank()
+                || confirmation.dateOfBirth == null || confirmation.dateOfBirth.isBlank()) {
+            showStatus("Patient name and date of birth are required to confirm pickup.", true);
+            return;
+        }
+
+        pickupButton.setDisable(true);
+        showStatus("Confirming pickup...", false);
+        firebaseService.confirmPrescriptionPickup(
+                        prescription.getPrescriptionId(),
+                        pharmacyProfile,
+                        confirmation.patientName,
+                        confirmation.dateOfBirth
+                )
+                .thenRun(() -> Platform.runLater(this::loadPrescriptions))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> {
+                        pickupButton.setDisable(false);
+                        showStatus(cleanErrorMessage(e), true);
+                    });
+                    return null;
+                });
+    }
+
     private void refillPrescription(Prescription prescription, Button refillButton) {
         refillButton.setDisable(true);
         showStatus("Processing refill...", false);
@@ -247,9 +377,17 @@ public class PharmacyPrescriptionsController {
         SceneRouter.go("login-view.fxml", "Login");
     }
 
+    @FXML
+    private void onMessages() {
+        SceneRouter.go("pharmacy-message-view.fxml", "Messages");
+    }
+
     private String getStatusStyle(String status) {
         if (Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status)) {
             return "-fx-background-color: #DBEAFE; -fx-text-fill: #1D4ED8; -fx-font-size: 12; -fx-font-weight: bold; -fx-padding: 4 10; -fx-background-radius: 12;";
+        }
+        if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(status)) {
+            return "-fx-background-color: #E0E7FF; -fx-text-fill: #3730A3; -fx-font-size: 12; -fx-font-weight: bold; -fx-padding: 4 10; -fx-background-radius: 12;";
         }
         if (Prescription.STATUS_FILLED.equalsIgnoreCase(status)) {
             return "-fx-background-color: #DCFCE7; -fx-text-fill: #166534; -fx-font-size: 12; -fx-font-weight: bold; -fx-padding: 4 10; -fx-background-radius: 12;";
@@ -394,6 +532,7 @@ public class PharmacyPrescriptionsController {
 
         String status = prescription.getStatus();
         return Prescription.STATUS_FILLED.equalsIgnoreCase(status)
+                || Prescription.STATUS_PICKED_UP.equalsIgnoreCase(status)
                 || Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status);
     }
 
@@ -401,6 +540,19 @@ public class PharmacyPrescriptionsController {
         if (Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(status)) {
             return "REFILL REQUESTED";
         }
+        if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(status)) {
+            return "PICKED UP";
+        }
         return valueOrDefault(status, Prescription.STATUS_SENT);
+    }
+
+    private static class PickupConfirmation {
+        private final String patientName;
+        private final String dateOfBirth;
+
+        private PickupConfirmation(String patientName, String dateOfBirth) {
+            this.patientName = patientName;
+            this.dateOfBirth = dateOfBirth;
+        }
     }
 }

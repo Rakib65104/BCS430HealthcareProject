@@ -12,6 +12,8 @@ public class Message {
 
     private String doctorUid;
     private String doctorName;
+    private String pharmacyUid;
+    private String pharmacyName;
 
     private String patientUid;
     private String patientName;
@@ -50,6 +52,22 @@ public class Message {
 
     public void setDoctorName(String doctorName) {
         this.doctorName = doctorName;
+    }
+
+    public String getPharmacyUid() {
+        return pharmacyUid;
+    }
+
+    public void setPharmacyUid(String pharmacyUid) {
+        this.pharmacyUid = pharmacyUid;
+    }
+
+    public String getPharmacyName() {
+        return pharmacyName;
+    }
+
+    public void setPharmacyName(String pharmacyName) {
+        this.pharmacyName = pharmacyName;
     }
 
     public String getPatientUid() {

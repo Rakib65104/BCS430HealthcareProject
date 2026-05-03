@@ -14,7 +14,7 @@
 
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
-            fx:controller="rakib.bcs430healthcareproject.PatientMessageController"
+            fx:controller="rakib.bcs430healthcareproject.UnifiedMessageController"
             stylesheets="@app.css">
 
     <!-- Top Header -->
@@ -29,7 +29,7 @@
 
             <Region HBox.hgrow="ALWAYS" />
 
-            <Label fx:id="patientNameLabel"
+            <Label fx:id="currentUserNameLabel"
                    style="-fx-text-fill: #CCFBF1; -fx-font-size: 14; -fx-font-weight: bold;" />
         </HBox>
     </top>
@@ -47,10 +47,11 @@
                 <Label text="Conversations"
                        style="-fx-text-fill: #0F172A; -fx-font-size: 18; -fx-font-weight: bold;" />
 
-                <Label text="Doctors you've messaged"
+                <Label fx:id="contactHelpLabel"
+                       text="Doctors and pharmacies"
                        style="-fx-text-fill: #64748B; -fx-font-size: 12; -fx-font-weight: bold;" />
 
-                <ListView fx:id="doctorListView"
+                <ListView fx:id="contactListView"
                           VBox.vgrow="ALWAYS"
                           style="-fx-background-color: white; -fx-border-color: #D1FAE5; -fx-border-radius: 12; -fx-background-radius: 12;" />
 
@@ -66,11 +67,11 @@
                 <!-- Chat Header -->
                 <VBox spacing="6"
                       style="-fx-background-color: white; -fx-border-color: #D1FAE5; -fx-border-width: 0 0 1 0; -fx-padding: 18 22;">
-                    <Label fx:id="doctorHeaderLabel"
-                           text="Select a doctor"
+                    <Label fx:id="conversationTitleLabel"
+                           text="Select a conversation"
                            style="-fx-text-fill: #0F172A; -fx-font-size: 18; -fx-font-weight: bold;" />
 
-                    <Label fx:id="doctorInfoLabel"
+                    <Label fx:id="conversationSubtitleLabel"
                            text="Conversation details will appear here."
                            style="-fx-text-fill: #64748B; -fx-font-size: 13;" />
                 </VBox>
@@ -94,7 +95,7 @@
                            style="-fx-text-fill: #0F172A; -fx-font-size: 15; -fx-font-weight: bold;" />
 
                     <TextArea fx:id="messageInputArea"
-                              promptText="Type your message to the doctor..."
+                              promptText="Type your message..."
                               wrapText="true"
                               prefRowCount="3"
                               style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-focus-color: #14B8A6; -fx-faint-focus-color: transparent;" />

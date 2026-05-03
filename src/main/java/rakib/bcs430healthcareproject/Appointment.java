@@ -25,26 +25,24 @@ public class Appointment {
 
     private String hospitalUid;
     private String hospitalName;
+
+    // New preferred field
+    private String departmentName;
+
+    // Kept for older code compatibility
     private String hospitalDepartment;
 
-    // Timestamp for sorting
-    private Long appointmentDateTime; // Unix timestamp
+    private Long appointmentDateTime;
+    private String appointmentTime;
 
-    // Human readable date/time
-    private String appointmentTime; // e.g., "2026-03-15 10:30 AM"
+    private String appointmentDate;
+    private String appointmentSlot;
 
-    /**
-     * Fields used for availability checking
-     */
-    private String appointmentDate; // e.g., "2026-03-15"
-    private String appointmentSlot; // e.g., "10:30 AM"
-
-    private String status; // SCHEDULED, COMPLETED
+    private String status;
 
     private Boolean newPatient;
 
     private String reason;
-
     private String notes;
 
     private String referralType;
@@ -59,11 +57,9 @@ public class Appointment {
     private Long diagnosticResultsUploadedAt;
 
     private String prescribedMedications;
-
     private String prescribedPrescriptionId;
 
     private Long completedAt;
-
     private Long createdAt;
 
     public Appointment() {
@@ -83,8 +79,6 @@ public class Appointment {
         this.status = "SCHEDULED";
         this.createdAt = System.currentTimeMillis();
     }
-
-    // ===== Getters / Setters =====
 
     public String getAppointmentId() {
         return appointmentId;
@@ -142,12 +136,28 @@ public class Appointment {
         this.hospitalName = hospitalName;
     }
 
-    public String getHospitalDepartment() {
+    public String getDepartmentName() {
+        if (departmentName != null && !departmentName.isBlank()) {
+            return departmentName;
+        }
         return hospitalDepartment;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
+        this.hospitalDepartment = departmentName;
+    }
+
+    public String getHospitalDepartment() {
+        if (hospitalDepartment != null && !hospitalDepartment.isBlank()) {
+            return hospitalDepartment;
+        }
+        return departmentName;
     }
 
     public void setHospitalDepartment(String hospitalDepartment) {
         this.hospitalDepartment = hospitalDepartment;
+        this.departmentName = hospitalDepartment;
     }
 
     public Long getAppointmentDateTime() {
@@ -162,10 +172,6 @@ public class Appointment {
         return appointmentTime;
     }
 
-    /**
-     * Also extracts appointmentDate and appointmentSlot automatically.
-     * Expected format: "YYYY-MM-DD HH:MM AM"
-     */
     public void setAppointmentTime(String appointmentTime) {
         this.appointmentTime = appointmentTime;
 
@@ -323,9 +329,6 @@ public class Appointment {
         this.createdAt = createdAt;
     }
 
-    /**
-     * Returns a best-effort epoch millis for the appointment's scheduled time.
-     */
     public Long resolveAppointmentEpochMillis() {
         if (appointmentDateTime != null) {
             return appointmentDateTime;
@@ -338,7 +341,10 @@ public class Appointment {
 
         try {
             LocalDate date = LocalDate.parse(appointmentDate.trim());
-            LocalTime time = LocalTime.parse(appointmentSlot.trim().toUpperCase(Locale.ENGLISH), SLOT_TIME_FORMAT);
+            LocalTime time = LocalTime.parse(
+                    appointmentSlot.trim().toUpperCase(Locale.ENGLISH),
+                    SLOT_TIME_FORMAT
+            );
             LocalDateTime dateTime = LocalDateTime.of(date, time);
 
             return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();

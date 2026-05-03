@@ -58,6 +58,7 @@ public class HospitalDashboardController {
                     } catch (Exception e) {
                         hospitalDoctors = new ArrayList<>();
                     }
+
                     return new DashboardData(
                             appointments == null ? new ArrayList<>() : appointments,
                             patients == null ? new ArrayList<>() : patients,
@@ -66,7 +67,7 @@ public class HospitalDashboardController {
                 })
                 .thenAccept(data -> Platform.runLater(() -> {
                     updateStats(data.patients, data.appointments, data.doctors);
-                    loadPatientsPreview(data.patients);
+                    loadPatientsPreview(data.appointments);
                     loadSchedulePreview(data.appointments);
                 }))
                 .exceptionally(e -> {
@@ -95,57 +96,79 @@ public class HospitalDashboardController {
     }
 
     private void updateStats(List<PatientProfile> patients, List<Appointment> appointments, List<Doctor> hospitalDoctors) {
-        setLabelText(totalPatientsLabel, String.valueOf(patients != null ? patients.size() : 0));
+        Set<String> uniquePatientIds = new HashSet<>();
+        Set<String> uniqueDepartments = new HashSet<>();
 
         int todayCount = 0;
 
         if (appointments != null) {
             for (Appointment appointment : appointments) {
-                if (appointment != null && isToday(appointment) && !isCancelled(appointment)) {
+                if (appointment == null) {
+                    continue;
+                }
+
+                if (appointment.getPatientUid() != null && !appointment.getPatientUid().isBlank()) {
+                    uniquePatientIds.add(appointment.getPatientUid());
+                }
+
+                String department = appointment.getDepartmentName();
+                if (department != null && !department.isBlank()) {
+                    uniqueDepartments.add(department.trim().toLowerCase());
+                }
+
+                if (isToday(appointment) && !isCancelled(appointment)) {
                     todayCount++;
                 }
             }
         }
 
+        setLabelText(totalPatientsLabel, String.valueOf(uniquePatientIds.size()));
         setLabelText(appointmentsTodayLabel, String.valueOf(todayCount));
-        setLabelText(departmentsLabel, String.valueOf(countRealDepartments(hospitalDoctors)));
+        setLabelText(departmentsLabel, String.valueOf(uniqueDepartments.size()));
     }
 
-    private int countRealDepartments(List<Doctor> hospitalDoctors) {
-        Set<String> departments = new HashSet<>();
-
-        if (hospitalDoctors == null) {
-            return 0;
-        }
-
-        for (Doctor doctor : hospitalDoctors) {
-            if (doctor == null) {
-                continue;
-            }
-
-            String department = doctor.getDepartment();
-
-            if (department != null && !department.isBlank()) {
-                departments.add(department.trim().toLowerCase());
-            }
-        }
-
-        return departments.size();
-    }
-
-    private void loadPatientsPreview(List<PatientProfile> patients) {
+    private void loadPatientsPreview(List<Appointment> appointments) {
         if (patientsListVBox == null) return;
 
         patientsListVBox.getChildren().clear();
 
-        if (patients == null || patients.isEmpty()) {
+        if (appointments == null || appointments.isEmpty()) {
             patientsListVBox.getChildren().add(buildEmptyCard("No patients found yet."));
             return;
         }
 
-        int limit = Math.min(5, patients.size());
-        for (int i = 0; i < limit; i++) {
-            patientsListVBox.getChildren().add(buildPatientCard(patients.get(i)));
+        Map<String, Appointment> uniquePatientAppointments = new LinkedHashMap<>();
+
+        List<Appointment> sortedAppointments = appointments.stream()
+                .filter(Objects::nonNull)
+                .filter(appointment -> !isCancelled(appointment))
+                .sorted(Comparator.comparing(
+                        Appointment::resolveAppointmentEpochMillis,
+                        Comparator.nullsLast(Long::compareTo)
+                ))
+                .collect(Collectors.toList());
+
+        for (Appointment appointment : sortedAppointments) {
+            if (appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
+                continue;
+            }
+
+            uniquePatientAppointments.putIfAbsent(appointment.getPatientUid(), appointment);
+        }
+
+        if (uniquePatientAppointments.isEmpty()) {
+            patientsListVBox.getChildren().add(buildEmptyCard("No active hospital patients found."));
+            return;
+        }
+
+        int shown = 0;
+        for (Appointment appointment : uniquePatientAppointments.values()) {
+            patientsListVBox.getChildren().add(buildDepartmentPatientCard(appointment));
+            shown++;
+
+            if (shown >= 5) {
+                break;
+            }
         }
     }
 
@@ -199,6 +222,24 @@ public class HospitalDashboardController {
         return card;
     }
 
+    private VBox buildDepartmentPatientCard(Appointment appointment) {
+        VBox card = new VBox(4);
+        card.setPadding(new Insets(12));
+        card.setStyle("-fx-background-color: #F8FAFC; -fx-background-radius: 12; -fx-border-color: #D1FAE5; -fx-border-radius: 12;");
+
+        Label nameLabel = new Label(valueOrDefault(appointment.getPatientName(), "Unnamed Patient"));
+        nameLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;");
+
+        Label deptLabel = new Label("Department: " + valueOrDefault(appointment.getDepartmentName(), "General"));
+        deptLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12; -fx-font-weight: bold;");
+
+        Label doctorLabel = new Label("Authorized by Dr. " + valueOrDefault(appointment.getDoctorName(), "Unknown"));
+        doctorLabel.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
+
+        card.getChildren().addAll(nameLabel, deptLabel, doctorLabel);
+        return card;
+    }
+
     private VBox buildAppointmentCard(Appointment appointment) {
         VBox card = new VBox(6);
         card.setPadding(new Insets(12));
@@ -207,13 +248,16 @@ public class HospitalDashboardController {
         Label patientLabel = new Label(valueOrDefault(appointment.getPatientName(), "Unknown Patient"));
         patientLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;");
 
+        Label departmentLabel = new Label("Department: " + valueOrDefault(appointment.getDepartmentName(), "General"));
+        departmentLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12; -fx-font-weight: bold;");
+
         Label timeLabel = new Label(formatAppointmentTime(appointment));
         timeLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12;");
 
         Label statusLabel = new Label(valueOrDefault(appointment.getStatus(), "SCHEDULED"));
         statusLabel.setStyle("-fx-text-fill: #166534; -fx-font-size: 11; -fx-font-weight: bold;");
 
-        card.getChildren().addAll(patientLabel, timeLabel, statusLabel);
+        card.getChildren().addAll(patientLabel, departmentLabel, timeLabel, statusLabel);
         return card;
     }
 

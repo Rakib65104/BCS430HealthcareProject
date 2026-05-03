@@ -3,16 +3,7 @@ package rakib.bcs430healthcareproject;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -26,9 +17,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Controller for the doctor-side patient list.
- */
 public class DoctorPatientsController {
 
     private static final DateTimeFormatter REFERRAL_TIME_FORMAT =
@@ -60,6 +48,7 @@ public class DoctorPatientsController {
 
     private void loadPatients() {
         showStatus("Loading patient list...", false);
+
         firebaseService.getDoctorPatients(userContext.getUid())
                 .thenAccept(patients -> Platform.runLater(() -> renderPatients(patients)))
                 .exceptionally(e -> {
@@ -167,6 +156,7 @@ public class DoctorPatientsController {
             showStatus("Patient is required for hospital referral.", true);
             return;
         }
+
         if (hospitals == null || hospitals.isEmpty()) {
             showStatus("No hospital accounts are available for referral yet.", true);
             return;
@@ -182,29 +172,43 @@ public class DoctorPatientsController {
         ComboBox<HospitalProfile> hospitalComboBox = new ComboBox<>();
         hospitalComboBox.getItems().addAll(hospitals);
         hospitalComboBox.setMaxWidth(Double.MAX_VALUE);
-        hospitalComboBox.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+
+        hospitalComboBox.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(HospitalProfile item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : hospitalLabel(item));
             }
         });
-        hospitalComboBox.setButtonCell(new javafx.scene.control.ListCell<>() {
+
+        hospitalComboBox.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(HospitalProfile item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : hospitalLabel(item));
             }
         });
+
         hospitalComboBox.getSelectionModel().selectFirst();
 
-        ComboBox<String> serviceComboBox = new ComboBox<>();
-        serviceComboBox.getItems().addAll("Surgery", "Diagnostic Scan", "Lab Testing", "Specialist Procedure", "Follow-up Evaluation");
-        serviceComboBox.setEditable(true);
-        serviceComboBox.setValue("Diagnostic Scan");
-        serviceComboBox.setMaxWidth(Double.MAX_VALUE);
+        ComboBox<String> departmentComboBox = new ComboBox<>();
+        departmentComboBox.getItems().addAll(
+                "Emergency",
+                "Cardiology",
+                "Dermatology",
+                "Pediatrics",
+                "Orthopedics",
+                "Radiology",
+                "Neurology",
+                "Laboratory",
+                "General Medicine",
+                "Surgery"
+        );
+        departmentComboBox.setValue("General Medicine");
+        departmentComboBox.setMaxWidth(Double.MAX_VALUE);
 
         DatePicker referralDatePicker = new DatePicker(LocalDate.now().plusDays(1));
+
         ComboBox<String> timeComboBox = new ComboBox<>();
         timeComboBox.getItems().addAll(
                 "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
@@ -222,8 +226,8 @@ public class DoctorPatientsController {
         VBox content = new VBox(10,
                 new Label("Hospital"),
                 hospitalComboBox,
-                new Label("Service / referral type"),
-                serviceComboBox,
+                new Label("Hospital Department"),
+                departmentComboBox,
                 new Label("Appointment date"),
                 referralDatePicker,
                 new Label("Appointment time"),
@@ -231,57 +235,65 @@ public class DoctorPatientsController {
                 new Label("Referral notes"),
                 referralNotesArea
         );
+
         content.setPrefWidth(420);
         dialog.getDialogPane().setContent(content);
 
         ButtonType result = dialog.showAndWait().orElse(ButtonType.CANCEL);
+
         if (result != createType) {
             return;
         }
 
         HospitalProfile selectedHospital = hospitalComboBox.getValue();
-        String serviceType = serviceComboBox.getEditor() != null && !serviceComboBox.getEditor().getText().isBlank()
-                ? serviceComboBox.getEditor().getText().trim()
-                : serviceComboBox.getValue();
+        String selectedDepartment = departmentComboBox.getValue();
         LocalDate date = referralDatePicker.getValue();
+
         String time = timeComboBox.getEditor() != null && !timeComboBox.getEditor().getText().isBlank()
                 ? timeComboBox.getEditor().getText().trim()
                 : timeComboBox.getValue();
+
         String referralNotes = referralNotesArea.getText() == null ? "" : referralNotesArea.getText().trim();
 
         if (selectedHospital == null) {
             showStatus("Please choose a hospital for the referral.", true);
             return;
         }
-        if (serviceType == null || serviceType.isBlank()) {
-            showStatus("Please enter the service the hospital should provide.", true);
+
+        if (selectedDepartment == null || selectedDepartment.isBlank()) {
+            showStatus("Please choose a hospital department.", true);
             return;
         }
+
         if (date == null) {
             showStatus("Please choose a referral date.", true);
             return;
         }
+
         if (time == null || time.isBlank()) {
             showStatus("Please choose a referral time.", true);
             return;
         }
 
-        createHospitalReferral(patient, selectedHospital, serviceType, date, time, referralNotes);
+        createHospitalReferral(patient, selectedHospital, selectedDepartment, date, time, referralNotes);
     }
 
     private void createHospitalReferral(PatientProfile patient,
                                         HospitalProfile hospital,
-                                        String serviceType,
+                                        String department,
                                         LocalDate date,
                                         String time,
                                         String referralNotes) {
         LocalTime localTime;
+
         try {
             localTime = LocalTime.parse(time.trim().toUpperCase(Locale.ENGLISH), REFERRAL_TIME_FORMAT);
         } catch (Exception ex) {
             showStatus("Referral time must look like 9:00 AM.", true);
             return;
         }
+
+        String normalizedTime = localTime.format(REFERRAL_TIME_FORMAT).toUpperCase(Locale.ENGLISH);
 
         long appointmentEpoch = LocalDateTime.of(date, localTime)
                 .atZone(ZoneId.systemDefault())
@@ -295,18 +307,27 @@ public class DoctorPatientsController {
                 userContext.getName(),
                 appointmentEpoch
         );
+
         appointment.setAppointmentDate(date.toString());
-        appointment.setAppointmentSlot(time.trim().toUpperCase(Locale.ENGLISH));
-        appointment.setAppointmentTime(date + " " + appointment.getAppointmentSlot());
+        appointment.setAppointmentSlot(normalizedTime);
+        appointment.setAppointmentTime(date + " " + normalizedTime);
+
         appointment.setStatus("SCHEDULED");
-        appointment.setReason(serviceType);
-        appointment.setReferralType(serviceType);
-        appointment.setNotes(referralNotes);
-        appointment.setReferralNotes(referralNotes);
+        appointment.setNewPatient(false);
+
         appointment.setHospitalUid(hospital.getUid());
         appointment.setHospitalName(hospital.getHospitalName());
-        appointment.setHospitalDepartment(serviceType);
-        appointment.setNewPatient(false);
+
+        appointment.setDepartmentName(department);
+        appointment.setHospitalDepartment(department);
+
+        appointment.setReferralType("HOSPITAL_VISIT");
+        appointment.setReason("Hospital referral to " + department);
+        appointment.setNotes(referralNotes);
+        appointment.setReferralNotes(referralNotes);
+
+        appointment.setReferralAuthorizedByDoctorUid(userContext.getUid());
+        appointment.setReferralAuthorizedByDoctorName(userContext.getName());
 
         firebaseService.createHospitalReferralAppointment(appointment)
                 .thenAccept(appointmentId -> Platform.runLater(() -> {
@@ -314,16 +335,19 @@ public class DoctorPatientsController {
                             patient.getUid(),
                             "Hospital Referral Scheduled",
                             "Dr. " + userContext.getName() + " referred you to "
-                                    + fallback(hospital.getHospitalName()) + " for " + serviceType
+                                    + fallback(hospital.getHospitalName()) + " - "
+                                    + department
                                     + " on " + date + " at " + appointment.getAppointmentSlot() + ".",
                             "HOSPITAL_REFERRAL",
                             appointmentId
                     );
+
                     showStatus("Hospital referral scheduled successfully.", false);
                     loadPatients();
                 }))
                 .exceptionally(e -> {
-                    Platform.runLater(() -> showStatus("Failed to create referral: " + cleanErrorMessage(e), true));
+                    Platform.runLater(() ->
+                            showStatus("Failed to create referral: " + cleanErrorMessage(e), true));
                     return null;
                 });
     }

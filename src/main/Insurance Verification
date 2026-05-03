@@ -1,0 +1,117 @@
+package com.example.healthcare.insurance;
+
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.*;
+
+@Service
+public class InsuranceVerificationService {
+
+    private final InsuranceProviderClient insuranceProviderClient;
+
+    public InsuranceVerificationService(InsuranceProviderClient insuranceProviderClient) {
+        this.insuranceProviderClient = insuranceProviderClient;
+    }
+
+    public InsuranceVerificationResult verifyVisit(InsuranceVerificationRequest request) {
+        validateRequest(request);
+
+        InsuranceEligibilityResponse eligibility =
+                insuranceProviderClient.checkEligibility(request.getPolicyNumber(), request.getGroupNumber(), request.getDateOfBirth());
+
+        if (!eligibility.isActive()) {
+            return InsuranceVerificationResult.denied(
+                    "Insurance policy is inactive",
+                    "ACTIVE_COVERAGE_REQUIRED"
+            );
+        }
+
+        boolean inNetwork = eligibility.isInNetworkProvider(request.getProviderNpi());
+
+        if (!eligibility.isServiceCovered("VISIT")) {
+            return InsuranceVerificationResult.denied(
+                    "Hospital visit is not covered under this plan",
+                    "VISIT_NOT_COVERED"
+            );
+        }
+
+        return InsuranceVerificationResult.approved(
+                "Visit verified",
+                eligibility.getCopay(),
+                eligibility.getDeductible(),
+                inNetwork,
+                false,
+                Collections.emptyList()
+        );
+    }
+
+    public InsuranceVerificationResult verifyProcedure(InsuranceVerificationRequest request) {
+        validateRequest(request);
+
+        InsuranceEligibilityResponse eligibility =
+                insuranceProviderClient.checkEligibility(request.getPolicyNumber(), request.getGroupNumber(), request.getDateOfBirth());
+
+        if (!eligibility.isActive()) {
+            return InsuranceVerificationResult.denied(
+                    "Insurance policy is inactive",
+                    "ACTIVE_COVERAGE_REQUIRED"
+            );
+        }
+
+        boolean covered = eligibility.isServiceCovered(request.getProcedureCode());
+        boolean priorAuthRequired = eligibility.isPriorAuthorizationRequired(request.getProcedureCode());
+        boolean authOnFile = insuranceProviderClient.hasPriorAuthorization(
+                request.getPolicyNumber(),
+                request.getProcedureCode()
+        );
+
+        if (!covered) {
+            return InsuranceVerificationResult.denied(
+                    "Procedure is not covered",
+                    "PROCEDURE_NOT_COVERED"
+            );
+        }
+
+        if (priorAuthRequired && !authOnFile) {
+            return InsuranceVerificationResult.pending(
+                    "Prior authorization required before procedure can be approved",
+                    "PRIOR_AUTH_REQUIRED",
+                    eligibility.getCopay(),
+                    eligibility.getDeductible(),
+                    eligibility.isInNetworkProvider(request.getProviderNpi()),
+                    true
+            );
+        }
+
+        return InsuranceVerificationResult.approved(
+                "Procedure verified",
+                eligibility.getCopay(),
+                eligibility.getDeductible(),
+                eligibility.isInNetworkProvider(request.getProviderNpi()),
+                priorAuthRequired,
+                authOnFile ? List.of("Prior authorization found on file") : Collections.emptyList()
+        );
+    }
+
+    private void validateRequest(InsuranceVerificationRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request cannot be null");
+        }
+        if (request.getPatientId() == null || request.getPatientId().isBlank()) {
+            throw new IllegalArgumentException("Patient ID is required");
+        }
+        if (request.getPolicyNumber() == null || request.getPolicyNumber().isBlank()) {
+            throw new IllegalArgumentException("Policy number is required");
+        }
+        if (request.getDateOfBirth() == null) {
+            throw new IllegalArgumentException("Date of birth is required");
+        }
+        if (request.getProviderNpi() == null || request.getProviderNpi().isBlank()) {
+            throw new IllegalArgumentException("Provider NPI is required");
+        }
+        if (request.getVisitType() == null || request.getVisitType().isBlank()) {
+            throw new IllegalArgumentException("Visit type is required");
+        }
+    }
+}

@@ -360,7 +360,7 @@ public class HospitalDashboardController {
     @FXML
     private void onLogout() {
         userContext.clearUserData();
-        SceneRouter.go("login-view.fxml", "Login");
+        SceneRouter.go("hospital-login-view.fxml", "Login");
     }
 
     private void setLabelText(Label label, String text) {

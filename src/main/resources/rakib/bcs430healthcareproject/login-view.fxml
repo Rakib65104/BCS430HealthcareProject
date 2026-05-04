@@ -15,10 +15,13 @@
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="rakib.bcs430healthcareproject.LoginController"
-            style="-fx-background-color:#F4F9F9;">
+            stylesheets="@app.css"
+            style="-fx-background-color: linear-gradient(to bottom right, #D1FAE5, #ECFEFF, #F8FAFC);">
 
     <top>
-        <HBox style="-fx-background-color:#0F766E; -fx-padding:18 24; -fx-alignment:center-left;">
+        <HBox style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                     -fx-padding: 18 24;
+                     -fx-alignment: center-left;">
             <Label text="HealthConnect"
                    style="-fx-text-fill:white; -fx-font-size:22; -fx-font-weight:bold;"/>
 
@@ -30,34 +33,39 @@
     </top>
 
     <center>
-        <StackPane>
-            <VBox spacing="14"
-                  maxWidth="420"
-                  style="-fx-background-color:white;
-                         -fx-background-radius:12;
-                         -fx-padding:28;
-                         -fx-border-color:#E5E7EB;
-                         -fx-border-radius:12;">
+        <StackPane style="-fx-padding: 36;">
+            <VBox spacing="15"
+                  maxWidth="430"
+                  alignment="CENTER_LEFT"
+                  style="-fx-background-color: white;
+                         -fx-background-radius: 18;
+                         -fx-padding: 30;
+                         -fx-border-color: #CCFBF1;
+                         -fx-border-radius: 18;
+                         -fx-effect: dropshadow(gaussian, rgba(15,118,110,0.24), 28, 0.18, 0, 10);">
 
-                <Label text="Welcome"
-                       style="-fx-font-size:22; -fx-font-weight:bold; -fx-text-fill:#134E4A;"/>
+                <VBox spacing="4" alignment="CENTER_LEFT">
+                    <Label text="Welcome"
+                           style="-fx-font-size:24; -fx-font-weight:bold; -fx-text-fill:#134E4A;"/>
 
-                <Label text="Log in to your account"
-                       style="-fx-font-size:13; -fx-text-fill:#6B7280;"/>
+                    <Label text="Log in to your account"
+                           style="-fx-font-size:13; -fx-text-fill:#64748B;"/>
+                </VBox>
 
-                <VBox spacing="6">
+                <VBox spacing="7" maxWidth="1.7976931348623157E308">
                     <Label text="Email (Username)"
-                           style="-fx-font-size:13; -fx-text-fill:#374151;"/>
+                           style="-fx-font-size:13; -fx-font-weight:bold; -fx-text-fill:#334155;"/>
 
                     <TextField fx:id="emailField"
                                promptText="name@example.com"
-                               style="-fx-background-radius:8; -fx-padding:8;"/>
+                               maxWidth="1.7976931348623157E308"
+                               style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
                 </VBox>
 
-                <VBox spacing="6">
+                <VBox spacing="7" maxWidth="1.7976931348623157E308">
                     <HBox alignment="CENTER_LEFT">
                         <Label text="Password"
-                               style="-fx-font-size:13; -fx-text-fill:#374151;"/>
+                               style="-fx-font-size:13; -fx-font-weight:bold; -fx-text-fill:#334155;"/>
                         <Region HBox.hgrow="ALWAYS"/>
                         <Hyperlink text="Forgot password?"
                                    onAction="#onForgotPassword"
@@ -66,53 +74,59 @@
 
                     <PasswordField fx:id="passwordField"
                                    promptText="••••••••"
-                                   style="-fx-background-radius:8; -fx-padding:8;"/>
+                                   maxWidth="1.7976931348623157E308"
+                                   style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
                 </VBox>
 
                 <Label fx:id="errorLabel"
                        text=""
                        managed="false"
                        visible="false"
-                       style="-fx-text-fill:#DC2626; -fx-font-size:12; -fx-wrap-text:true;"/>
+                       wrapText="true"
+                       style="-fx-text-fill:#DC2626; -fx-font-size:12;"/>
 
                 <Button text="Log In"
                         onAction="#onLogin"
-                        maxWidth="Infinity"
-                        style="-fx-background-color:#0F766E;
+                        maxWidth="1.7976931348623157E308"
+                        style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
                                -fx-text-fill:white;
                                -fx-font-weight:bold;
-                               -fx-background-radius:8;
-                               -fx-padding:10 16;"/>
+                               -fx-background-radius:10;
+                               -fx-padding:11 16;"/>
 
-                <HBox spacing="6" alignment="CENTER">
+                <HBox spacing="6" alignment="CENTER" maxWidth="1.7976931348623157E308">
                     <Label text="No account?"
-                           style="-fx-text-fill:#6B7280;"/>
+                           style="-fx-text-fill:#64748B;"/>
 
                     <Hyperlink text="Create one"
                                onAction="#onGoSignup"
-                               style="-fx-text-fill:#0F766E;"/>
+                               style="-fx-text-fill:#0F766E; -fx-font-weight:bold; -fx-border-width:0;"/>
                 </HBox>
 
-                <HBox spacing="10" alignment="CENTER_LEFT">
+                <HBox spacing="10" alignment="CENTER" maxWidth="1.7976931348623157E308">
                     <Button text="Hospital Portal"
                             onAction="#onHospitalPortal"
-                            style="-fx-background-color:white;
+                            HBox.hgrow="ALWAYS"
+                            maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color:#E6FFFA;
                                    -fx-text-fill:#0F766E;
                                    -fx-font-weight:bold;
-                                   -fx-border-color:#14B8A6;
-                                   -fx-border-radius:8;
-                                   -fx-background-radius:8;
-                                   -fx-padding:10 16;"/>
+                                   -fx-border-color:#99F6E4;
+                                   -fx-border-radius:10;
+                                   -fx-background-radius:10;
+                                   -fx-padding:10 14;"/>
 
                     <Button text="Pharmacy Portal"
                             onAction="#onPharmacyPortal"
-                            style="-fx-background-color:white;
+                            HBox.hgrow="ALWAYS"
+                            maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color:#E6FFFA;
                                    -fx-text-fill:#0F766E;
                                    -fx-font-weight:bold;
-                                   -fx-border-color:#14B8A6;
-                                   -fx-border-radius:8;
-                                   -fx-background-radius:8;
-                                   -fx-padding:10 16;"/>
+                                   -fx-border-color:#99F6E4;
+                                   -fx-border-radius:10;
+                                   -fx-background-radius:10;
+                                   -fx-padding:10 14;"/>
                 </HBox>
 
             </VBox>

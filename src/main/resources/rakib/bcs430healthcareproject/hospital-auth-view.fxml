@@ -1,56 +1,123 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.web.WebView?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
             fx:controller="rakib.bcs430healthcareproject.HospitalAuthController"
-            styleClass="root">
+            stylesheets="@app.css"
+            style="-fx-background-color: linear-gradient(to bottom right, #ECFDF5, #F8FAFC);">
+
+    <top>
+        <VBox>
+            <HBox style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                         -fx-padding: 14 22; -fx-alignment: center-left;">
+                <Label text="HealthConnect"
+                       style="-fx-text-fill:white; -fx-font-size:22; -fx-font-weight:bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="Back" onAction="#onBack"
+                        style="-fx-background-color:white; -fx-text-fill:#0F766E; -fx-font-weight:bold;
+                               -fx-background-radius:8; -fx-padding:6 16;"/>
+            </HBox>
+
+            <VBox style="-fx-background-color:#134E4A; -fx-padding:14 22;" spacing="3">
+                <Label text="Hospital Access Portal"
+                       style="-fx-text-fill:white; -fx-font-size:22; -fx-font-weight:bold;"/>
+                <Label text="Sign in, register, and explore participating hospital locations."
+                       style="-fx-text-fill:#CCFBF1; -fx-font-size:12;"/>
+            </VBox>
+        </VBox>
+    </top>
 
     <center>
-        <HBox spacing="20" style="-fx-padding: 24; -fx-alignment: center;">
-            <VBox styleClass="card" maxWidth="420" spacing="16">
-                <padding>
-                    <Insets top="26" right="26" bottom="26" left="26"/>
-                </padding>
+        <ScrollPane fitToWidth="true"
+                    style="-fx-background-color:transparent; -fx-border-color:transparent;">
+            <content>
+                <VBox spacing="16" style="-fx-padding:18;">
 
-                <Label text="Hospital Portal" styleClass="title"/>
-                <Label text="Sign in to manage your hospital account, or create a new hospital location on HealthConnect." styleClass="subtitle" wrapText="true"/>
+                    <HBox spacing="16">
 
-                <Button text="Hospital Sign In"
-                        onAction="#onSignIn"
-                        styleClass="primary-btn"
-                        maxWidth="1.7976931348623157E308"/>
+                        <VBox prefWidth="300"
+                              spacing="12"
+                              style="-fx-background-color:white; -fx-background-radius:18;
+                                     -fx-border-radius:18; -fx-border-color:#CCFBF1;
+                                     -fx-padding:20;
+                                     -fx-effect:dropshadow(gaussian, rgba(15,118,110,0.14), 18, 0.15, 0, 5);">
 
-                <Button text="Hospital Sign Up"
-                        onAction="#onSignUp"
-                        styleClass="ghost-btn"
-                        maxWidth="1.7976931348623157E308"/>
+                            <Label text="Hospital Portal"
+                                   style="-fx-text-fill:#0F172A; -fx-font-size:22; -fx-font-weight:bold;"/>
 
-                <Button text="Back to Main Login"
-                        onAction="#onBack"
-                        styleClass="ghost-btn"
-                        maxWidth="1.7976931348623157E308"/>
-            </VBox>
+                            <Label text="Manage referrals, patients, schedules, departments, and reports."
+                                   wrapText="true"
+                                   style="-fx-text-fill:#64748B; -fx-font-size:13;"/>
 
-            <VBox styleClass="card" spacing="14" HBox.hgrow="ALWAYS" maxWidth="860">
-                <padding>
-                    <Insets top="22" right="22" bottom="22" left="22"/>
-                </padding>
+                            <Button text="Hospital Sign In"
+                                    onAction="#onSignIn"
+                                    maxWidth="1.7976931348623157E308"
+                                    style="-fx-background-color:linear-gradient(to right, #0F766E, #14B8A6);
+                                           -fx-text-fill:white; -fx-font-size:13; -fx-font-weight:bold;
+                                           -fx-background-radius:10; -fx-padding:10 18;"/>
 
-                <Label text="Find Registered Hospitals" styleClass="title"/>
-                <Label text="Search by hospital name or address to explore registered hospital locations before signing in or creating an account." styleClass="subtitle" wrapText="true"/>
-                <TextField fx:id="hospitalSearchField" promptText="Search hospital by name or address"/>
-                <Label fx:id="statusLabel" textFill="#0F766E"/>
-                <WebView fx:id="hospitalMapWebView" prefHeight="420" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS"/>
-            </VBox>
-        </HBox>
+                            <Button text="Hospital Sign Up"
+                                    onAction="#onSignUp"
+                                    maxWidth="1.7976931348623157E308"
+                                    style="-fx-background-color:#E6FFFA; -fx-text-fill:#0F766E;
+                                           -fx-font-size:13; -fx-font-weight:bold;
+                                           -fx-border-color:#99F6E4; -fx-border-radius:10;
+                                           -fx-background-radius:10; -fx-padding:9 18;"/>
+
+                            <Button text="Back to Main Login"
+                                    onAction="#onBack"
+                                    maxWidth="1.7976931348623157E308"
+                                    style="-fx-background-color:#E2E8F0; -fx-text-fill:#334155;
+                                           -fx-font-size:13; -fx-font-weight:bold;
+                                           -fx-background-radius:10; -fx-padding:9 18;"/>
+                        </VBox>
+
+                        <VBox spacing="12" HBox.hgrow="ALWAYS"
+                              style="-fx-background-color:white; -fx-background-radius:18;
+                                     -fx-border-radius:18; -fx-border-color:#CCFBF1;
+                                     -fx-padding:18;
+                                     -fx-effect:dropshadow(gaussian, rgba(15,118,110,0.12), 18, 0.12, 0, 4);">
+
+                            <Label text="Find Registered Hospitals"
+                                   style="-fx-text-fill:#0F172A; -fx-font-size:22; -fx-font-weight:bold;"/>
+
+                            <TextField fx:id="hospitalSearchField"
+                                       promptText="Search hospital by name or address"
+                                       style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:9;"/>
+
+                            <Label fx:id="statusLabel"
+                                   style="-fx-text-fill:#0F766E; -fx-font-size:12; -fx-font-weight:bold;"/>
+
+                            <WebView fx:id="hospitalMapWebView"
+                                     minHeight="330"
+                                     prefHeight="330"
+                                     maxHeight="330"
+                                     VBox.vgrow="NEVER"/>
+                        </VBox>
+                    </HBox>
+
+                    <VBox spacing="10"
+                          style="-fx-background-color:white; -fx-background-radius:18;
+                                 -fx-border-radius:18; -fx-border-color:#CCFBF1;
+                                 -fx-padding:16;">
+                        <Label text="Participating Hospitals"
+                               style="-fx-text-fill:#0F172A; -fx-font-size:19; -fx-font-weight:bold;"/>
+
+                        <ScrollPane fitToWidth="true"
+                                    prefHeight="130"
+                                    style="-fx-background-color:transparent; -fx-border-color:transparent;">
+                            <content>
+                                <VBox fx:id="hospitalCardsVBox" spacing="8" style="-fx-padding:2;"/>
+                            </content>
+                        </ScrollPane>
+                    </VBox>
+
+                </VBox>
+            </content>
+        </ScrollPane>
     </center>
-
 </BorderPane>

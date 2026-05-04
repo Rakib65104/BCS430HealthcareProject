@@ -2,8 +2,10 @@ package rakib.bcs430healthcareproject;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 
@@ -15,6 +17,7 @@ public class HospitalAuthController {
     @FXML private TextField hospitalSearchField;
     @FXML private Label statusLabel;
     @FXML private WebView hospitalMapWebView;
+    @FXML private VBox hospitalCardsVBox;
 
     private FirebaseService firebaseService;
     private List<HospitalProfile> allHospitals = new ArrayList<>();
@@ -46,13 +49,15 @@ public class HospitalAuthController {
 
     private void loadHospitals() {
         showStatus("Loading registered hospitals...", false);
+
         firebaseService.getAllHospitals()
                 .thenAccept(hospitals -> Platform.runLater(() -> {
                     allHospitals = hospitals != null ? hospitals : new ArrayList<>();
                     applyFilter();
                 }))
                 .exceptionally(e -> {
-                    Platform.runLater(() -> showStatus("Failed to load hospital locations: " + cleanErrorMessage(e), true));
+                    Platform.runLater(() ->
+                            showStatus("Failed to load hospital locations: " + cleanErrorMessage(e), true));
                     return null;
                 });
     }
@@ -64,12 +69,15 @@ public class HospitalAuthController {
         for (HospitalProfile hospital : allHospitals) {
             String address = valueOrDefault(hospital.getFullAddress(), "").toLowerCase();
             String name = valueOrDefault(hospital.getHospitalName(), "").toLowerCase();
+
             if (query.isBlank() || address.contains(query) || name.contains(query)) {
                 filteredHospitals.add(hospital);
             }
         }
 
         updateMap(filteredHospitals);
+        updateHospitalCards(filteredHospitals);
+
         if (query.isBlank()) {
             showStatus("Showing " + filteredHospitals.size() + " registered hospital location(s).", false);
         } else {
@@ -80,19 +88,35 @@ public class HospitalAuthController {
     private void setupMap() {
         try {
             WebEngine engine = hospitalMapWebView.getEngine();
+
             engine.setUserAgent(
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
                             "AppleWebKit/537.36 (KHTML, like Gecko) " +
                             "Chrome/120.0.0.0 Safari/537.36"
             );
+
             String mapUrl = getClass().getResource("/rakib/bcs430healthcareproject/map.html").toExternalForm();
             engine.load(mapUrl);
+
             engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
                 if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
                     mapLoaded = true;
-                    updateMap(filteredHospitals);
+
+                    Platform.runLater(() -> {
+                        try {
+                            engine.executeScript(
+                                    "setTimeout(function(){" +
+                                            "if(window.map){ window.map.invalidateSize(); }" +
+                                            "},700);"
+                            );
+                        } catch (Exception ignored) {
+                        }
+
+                        updateMap(filteredHospitals);
+                    });
                 }
             });
+
         } catch (Exception e) {
             showStatus("Failed to load map.", true);
         }
@@ -106,6 +130,7 @@ public class HospitalAuthController {
         Platform.runLater(() -> {
             try {
                 WebEngine engine = hospitalMapWebView.getEngine();
+
                 engine.executeScript("if (typeof clearMarkers === 'function') clearMarkers();");
 
                 if (hospitals != null) {
@@ -120,15 +145,59 @@ public class HospitalAuthController {
                     }
                 }
 
+                engine.executeScript("if(window.map){ window.map.invalidateSize(); }");
                 engine.executeScript("if (typeof fitMapToMarkers === 'function') fitMapToMarkers();");
+
             } catch (Exception e) {
                 showStatus("Failed to update map.", true);
             }
         });
     }
 
+    private void updateHospitalCards(List<HospitalProfile> hospitals) {
+        if (hospitalCardsVBox == null) return;
+
+        hospitalCardsVBox.getChildren().clear();
+
+        if (hospitals == null || hospitals.isEmpty()) {
+            Label empty = new Label("No hospital locations found.");
+            empty.setStyle("-fx-text-fill: #64748B; -fx-font-size: 13;");
+            hospitalCardsVBox.getChildren().add(empty);
+            return;
+        }
+
+        int shown = 0;
+
+        for (HospitalProfile hospital : hospitals) {
+            if (shown >= 6) break;
+
+            VBox card = new VBox(4);
+            card.setPadding(new Insets(12));
+            card.setStyle("-fx-background-color: #F8FAFC;" +
+                    "-fx-background-radius: 12;" +
+                    "-fx-border-color: #D1FAE5;" +
+                    "-fx-border-radius: 12;");
+
+            Label name = new Label(valueOrDefault(hospital.getHospitalName(), "Hospital"));
+            name.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;");
+
+            Label address = new Label(valueOrDefault(hospital.getFullAddress(), "Address not provided"));
+            address.setWrapText(true);
+            address.setStyle("-fx-text-fill: #475569; -fx-font-size: 12;");
+
+            Label phone = new Label("Phone: " + valueOrDefault(hospital.getPhoneNumber(), "Not provided"));
+            phone.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
+
+            card.getChildren().addAll(name, address, phone);
+            hospitalCardsVBox.getChildren().add(card);
+
+            shown++;
+        }
+    }
+
     private String buildHospitalInfoHtml(HospitalProfile hospital) {
-        return "<div>Address: " + escapeHtml(valueOrDefault(hospital.getFullAddress(), "Address not provided")) + "</div>"
+        return "<div><b>" + escapeHtml(valueOrDefault(hospital.getHospitalName(), "Hospital")) + "</b></div>"
+                + "<div>Address: " + escapeHtml(valueOrDefault(hospital.getFullAddress(), "Address not provided")) + "</div>"
                 + "<div>Phone: " + escapeHtml(valueOrDefault(hospital.getPhoneNumber(), "Not provided")) + "</div>";
     }
 
@@ -147,9 +216,8 @@ public class HospitalAuthController {
     }
 
     private String escapeForJs(String value) {
-        if (value == null) {
-            return "";
-        }
+        if (value == null) return "";
+
         return value
                 .replace("\\", "\\\\")
                 .replace("'", "\\'")
@@ -158,9 +226,8 @@ public class HospitalAuthController {
     }
 
     private String escapeHtml(String value) {
-        if (value == null) {
-            return "";
-        }
+        if (value == null) return "";
+
         return value
                 .replace("&", "&amp;")
                 .replace("<", "&lt;")

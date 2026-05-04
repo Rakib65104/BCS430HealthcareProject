@@ -8,84 +8,193 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
             fx:controller="rakib.bcs430healthcareproject.HospitalSignupController"
-            styleClass="root">
+            stylesheets="@app.css"
+            styleClass="root"
+            style="-fx-background-color: linear-gradient(to bottom right, #ECFDF5, #F8FAFC);">
+
+    <top>
+        <VBox spacing="0">
+            <HBox style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                         -fx-padding: 18 26;
+                         -fx-alignment: center-left;
+                         -fx-spacing: 16;">
+                <Label text="HealthConnect"
+                       style="-fx-text-fill: white;
+                              -fx-font-size: 24;
+                              -fx-font-weight: bold;" />
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Button text="Back"
+                        onAction="#onBack"
+                        style="-fx-background-color: white;
+                               -fx-text-fill: #0F766E;
+                               -fx-font-size: 13;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 9;
+                               -fx-padding: 8 18;" />
+            </HBox>
+
+            <HBox style="-fx-background-color: #134E4A; -fx-padding: 20 28;">
+                <VBox spacing="4">
+                    <Label text="Hospital Registration"
+                           style="-fx-text-fill: white;
+                                  -fx-font-size: 25;
+                                  -fx-font-weight: bold;" />
+                    <Label text="Create a hospital portal account for referrals, schedules, patients, and diagnostic results."
+                           style="-fx-text-fill: #CCFBF1;
+                                  -fx-font-size: 13;" />
+                </VBox>
+            </HBox>
+        </VBox>
+    </top>
 
     <center>
-        <StackPane>
-            <ScrollPane fitToWidth="true" maxWidth="620" style="-fx-background-color: transparent;" pannable="true">
+        <StackPane style="-fx-padding: 28;">
+            <ScrollPane fitToWidth="true"
+                        maxWidth="760"
+                        pannable="true"
+                        style="-fx-background-color: transparent; -fx-border-color: transparent;">
                 <content>
-                    <VBox styleClass="card" spacing="14" maxWidth="620">
-                        <padding>
-                            <Insets top="26" right="26" bottom="26" left="26"/>
-                        </padding>
+                    <VBox spacing="18"
+                          maxWidth="760"
+                          style="-fx-background-color: white;
+                                 -fx-background-radius: 20;
+                                 -fx-border-radius: 20;
+                                 -fx-border-color: #CCFBF1;
+                                 -fx-padding: 28;
+                                 -fx-effect: dropshadow(gaussian, rgba(15, 118, 110, 0.18), 24, 0.18, 0, 8);">
 
-                        <Label text="Hospital Sign Up" styleClass="title"/>
-                        <Label text="Register your hospital so patients can discover it in the app and your staff can access the hospital portal." styleClass="subtitle" wrapText="true"/>
+                        <VBox spacing="6">
+                            <Label text="Create Hospital Account"
+                                   style="-fx-text-fill: #0F172A;
+                                          -fx-font-size: 26;
+                                          -fx-font-weight: bold;" />
 
-                        <VBox spacing="8">
-                            <Label text="Hospital Name" styleClass="label"/>
-                            <TextField fx:id="hospitalNameField" promptText="Regional Medical Center"/>
+                            <Label text="Register your hospital so doctors can refer patients to your departments and your staff can manage hospital visits."
+                                   wrapText="true"
+                                   style="-fx-text-fill: #64748B;
+                                          -fx-font-size: 14;" />
                         </VBox>
 
                         <VBox spacing="8">
-                            <Label text="Email" styleClass="label"/>
-                            <TextField fx:id="emailField" promptText="hospital@example.com"/>
+                            <Label text="Hospital Name"
+                                   style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                            <TextField fx:id="hospitalNameField"
+                                       promptText="Regional Medical Center"
+                                       style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                         </VBox>
 
-                        <HBox spacing="12">
+                        <VBox spacing="8">
+                            <Label text="Email"
+                                   style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                            <TextField fx:id="emailField"
+                                       promptText="hospital@example.com"
+                                       style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
+                        </VBox>
+
+                        <HBox spacing="14">
                             <VBox spacing="8" HBox.hgrow="ALWAYS">
-                                <Label text="Password" styleClass="label"/>
-                                <PasswordField fx:id="passwordField" promptText="At least 6 characters"/>
+                                <Label text="Password"
+                                       style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                                <PasswordField fx:id="passwordField"
+                                               promptText="At least 6 characters"
+                                               style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                             </VBox>
+
                             <VBox spacing="8" HBox.hgrow="ALWAYS">
-                                <Label text="Confirm Password" styleClass="label"/>
-                                <PasswordField fx:id="confirmPasswordField" promptText="Re-enter password"/>
+                                <Label text="Confirm Password"
+                                       style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                                <PasswordField fx:id="confirmPasswordField"
+                                               promptText="Re-enter password"
+                                               style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                             </VBox>
                         </HBox>
 
                         <VBox spacing="8">
-                            <Label text="Contact Number" styleClass="label"/>
-                            <TextField fx:id="phoneField" promptText="(555) 123-4567"/>
+                            <Label text="Contact Number"
+                                   style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                            <TextField fx:id="phoneField"
+                                       promptText="(555) 123-4567"
+                                       style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                         </VBox>
 
                         <VBox spacing="8">
-                            <Label text="Street Address" styleClass="label"/>
-                            <TextField fx:id="addressField" promptText="123 Main St"/>
+                            <Label text="Street Address"
+                                   style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                            <TextField fx:id="addressField"
+                                       promptText="123 Main St"
+                                       style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                         </VBox>
 
-                        <HBox spacing="12">
+                        <HBox spacing="14">
                             <VBox spacing="8" HBox.hgrow="ALWAYS">
-                                <Label text="City" styleClass="label"/>
-                                <TextField fx:id="cityField" promptText="Farmingdale"/>
+                                <Label text="City"
+                                       style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                                <TextField fx:id="cityField"
+                                           promptText="Farmingdale"
+                                           style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                             </VBox>
-                            <VBox spacing="8" prefWidth="90">
-                                <Label text="State" styleClass="label"/>
-                                <TextField fx:id="stateField" promptText="NY"/>
+
+                            <VBox spacing="8" prefWidth="100">
+                                <Label text="State"
+                                       style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                                <TextField fx:id="stateField"
+                                           promptText="NY"
+                                           style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                             </VBox>
-                            <VBox spacing="8" prefWidth="120">
-                                <Label text="ZIP" styleClass="label"/>
-                                <TextField fx:id="zipField" promptText="11735"/>
+
+                            <VBox spacing="8" prefWidth="130">
+                                <Label text="ZIP"
+                                       style="-fx-text-fill: #0F766E; -fx-font-weight: bold;" />
+                                <TextField fx:id="zipField"
+                                           promptText="11735"
+                                           style="-fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 10;" />
                             </VBox>
                         </HBox>
 
-                        <Label text="Use the same location patients should see when they search for hospitals in the app." styleClass="muted" wrapText="true"/>
+                        <Label text="Use the same location patients and doctors should see when they search for hospitals in the app."
+                               wrapText="true"
+                               style="-fx-text-fill: #64748B;
+                                      -fx-font-size: 12;
+                                      -fx-background-color: #F0FDFA;
+                                      -fx-background-radius: 10;
+                                      -fx-padding: 10;" />
 
-                        <Label fx:id="errorLabel" text="" managed="false" visible="false" styleClass="error"/>
+                        <Label fx:id="errorLabel"
+                               text=""
+                               managed="false"
+                               visible="false"
+                               style="-fx-text-fill: #DC2626;
+                                      -fx-font-size: 13;
+                                      -fx-font-weight: bold;" />
 
                         <Button text="Create Hospital Account"
                                 onAction="#onCreateHospitalAccount"
-                                styleClass="primary-btn"
-                                maxWidth="1.7976931348623157E308"/>
+                                maxWidth="1.7976931348623157E308"
+                                style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                                       -fx-text-fill: white;
+                                       -fx-font-size: 14;
+                                       -fx-font-weight: bold;
+                                       -fx-background-radius: 12;
+                                       -fx-padding: 12 20;" />
 
-                        <Button text="Back"
+                        <Button text="Back to Login"
                                 onAction="#onBack"
-                                styleClass="ghost-btn"
-                                maxWidth="1.7976931348623157E308"/>
+                                maxWidth="1.7976931348623157E308"
+                                style="-fx-background-color: #E2E8F0;
+                                       -fx-text-fill: #334155;
+                                       -fx-font-size: 14;
+                                       -fx-font-weight: bold;
+                                       -fx-background-radius: 12;
+                                       -fx-padding: 11 20;" />
                     </VBox>
                 </content>
             </ScrollPane>

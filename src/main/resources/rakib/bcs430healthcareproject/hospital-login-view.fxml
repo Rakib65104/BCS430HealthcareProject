@@ -7,56 +7,148 @@
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
             fx:controller="rakib.bcs430healthcareproject.HospitalLoginController"
-            styleClass="root">
+            stylesheets="@app.css"
+            styleClass="root"
+            style="-fx-background-color: linear-gradient(to bottom right, #ECFDF5, #F8FAFC);">
+
+    <top>
+        <VBox spacing="0">
+            <HBox style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                         -fx-padding: 18 26;
+                         -fx-alignment: center-left;
+                         -fx-spacing: 16;">
+                <Label text="HealthConnect"
+                       style="-fx-text-fill: white;
+                              -fx-font-size: 24;
+                              -fx-font-weight: bold;" />
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Button text="Back"
+                        onAction="#onBack"
+                        style="-fx-background-color: white;
+                               -fx-text-fill: #0F766E;
+                               -fx-font-size: 13;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 9;
+                               -fx-padding: 8 18;" />
+            </HBox>
+
+            <HBox style="-fx-background-color: #134E4A; -fx-padding: 20 28;">
+                <VBox spacing="4">
+                    <Label text="Hospital Portal"
+                           style="-fx-text-fill: white;
+                                  -fx-font-size: 25;
+                                  -fx-font-weight: bold;" />
+                    <Label text="Sign in to manage referrals, patients, schedules, and diagnostic results."
+                           style="-fx-text-fill: #CCFBF1;
+                                  -fx-font-size: 13;" />
+                </VBox>
+            </HBox>
+        </VBox>
+    </top>
 
     <center>
-        <StackPane>
-            <VBox styleClass="card" maxWidth="460" spacing="14">
-                <padding>
-                    <Insets top="26" right="26" bottom="26" left="26"/>
-                </padding>
+        <StackPane style="-fx-padding: 32;">
+            <VBox maxWidth="480"
+                  spacing="16"
+                  style="-fx-background-color: white;
+                         -fx-background-radius: 20;
+                         -fx-border-radius: 20;
+                         -fx-border-color: #CCFBF1;
+                         -fx-padding: 30;
+                         -fx-effect: dropshadow(gaussian, rgba(15, 118, 110, 0.18), 24, 0.18, 0, 8);">
 
-                <Label text="Hospital Sign In" styleClass="title"/>
-                <Label text="Access your registered hospital portal." styleClass="subtitle"/>
+                <VBox spacing="6">
+                    <Label text="Hospital Sign In"
+                           style="-fx-text-fill: #0F172A;
+                                  -fx-font-size: 26;
+                                  -fx-font-weight: bold;" />
+
+                    <Label text="Access your hospital account and manage authorized patient visits."
+                           wrapText="true"
+                           style="-fx-text-fill: #64748B;
+                                  -fx-font-size: 14;" />
+                </VBox>
 
                 <VBox spacing="8">
-                    <Label text="Email" styleClass="label"/>
-                    <TextField fx:id="emailField" promptText="hospital@example.com"/>
+                    <Label text="Email"
+                           style="-fx-text-fill: #0F766E;
+                                  -fx-font-weight: bold;" />
+
+                    <TextField fx:id="emailField"
+                               promptText="hospital@example.com"
+                               style="-fx-background-radius: 10;
+                                      -fx-border-radius: 10;
+                                      -fx-padding: 10;" />
                 </VBox>
 
                 <VBox spacing="8">
                     <HBox alignment="CENTER_LEFT">
-                        <Label text="Password" styleClass="label"/>
+                        <Label text="Password"
+                               style="-fx-text-fill: #0F766E;
+                                      -fx-font-weight: bold;" />
+
                         <Region HBox.hgrow="ALWAYS"/>
+
                         <Hyperlink text="Forgot password?"
                                    onAction="#onForgotPassword"
-                                   style="-fx-font-size:12; -fx-text-fill:#0F766E; -fx-padding:0; -fx-border-width:0;"/>
+                                   style="-fx-font-size: 12;
+                                          -fx-text-fill: #0F766E;
+                                          -fx-padding: 0;
+                                          -fx-border-width: 0;" />
                     </HBox>
-                    <PasswordField fx:id="passwordField" promptText="Password"/>
+
+                    <PasswordField fx:id="passwordField"
+                                   promptText="Password"
+                                   style="-fx-background-radius: 10;
+                                          -fx-border-radius: 10;
+                                          -fx-padding: 10;" />
                 </VBox>
 
-                <Label fx:id="errorLabel" text="" managed="false" visible="false" styleClass="error"/>
+                <Label fx:id="errorLabel"
+                       text=""
+                       managed="false"
+                       visible="false"
+                       style="-fx-text-fill: #DC2626;
+                              -fx-font-size: 13;
+                              -fx-font-weight: bold;" />
 
                 <Button text="Sign In"
                         onAction="#onLogin"
-                        styleClass="primary-btn"
-                        maxWidth="1.7976931348623157E308"/>
+                        maxWidth="1.7976931348623157E308"
+                        style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                               -fx-text-fill: white;
+                               -fx-font-size: 14;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 12;
+                               -fx-padding: 12 20;" />
 
-                <Hyperlink text="Need a hospital account?"
+                <Hyperlink text="Need a hospital account? Create one"
                            onAction="#onGoSignup"
-                           style="-fx-text-fill:#0F766E;"/>
+                           style="-fx-text-fill: #0F766E;
+                                  -fx-font-size: 13;
+                                  -fx-font-weight: bold;
+                                  -fx-border-width: 0;
+                                  -fx-padding: 0;" />
 
-                <Button text="Back"
+                <Button text="Back to Login"
                         onAction="#onBack"
-                        styleClass="ghost-btn"
-                        maxWidth="1.7976931348623157E308"/>
+                        maxWidth="1.7976931348623157E308"
+                        style="-fx-background-color: #E2E8F0;
+                               -fx-text-fill: #334155;
+                               -fx-font-size: 14;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 12;
+                               -fx-padding: 11 20;" />
             </VBox>
         </StackPane>
     </center>

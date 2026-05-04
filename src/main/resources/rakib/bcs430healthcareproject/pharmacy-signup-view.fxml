@@ -1,95 +1,142 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.PasswordField?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
             fx:controller="rakib.bcs430healthcareproject.PharmacySignupController"
-            styleClass="root">
+            stylesheets="@app.css"
+            style="-fx-background-color: linear-gradient(to bottom right, #ECFDF5, #F8FAFC);">
+
+    <top>
+        <VBox>
+            <HBox style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6);
+                         -fx-padding: 14 22; -fx-alignment: center-left;">
+                <Label text="HealthConnect"
+                       style="-fx-text-fill:white; -fx-font-size:22; -fx-font-weight:bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="Back" onAction="#onBack"
+                        style="-fx-background-color:white; -fx-text-fill:#0F766E; -fx-font-weight:bold;
+                               -fx-background-radius:8; -fx-padding:6 16;"/>
+            </HBox>
+
+            <VBox style="-fx-background-color:#134E4A; -fx-padding:14 22;" spacing="3">
+                <Label text="Pharmacy Registration"
+                       style="-fx-text-fill:white; -fx-font-size:22; -fx-font-weight:bold;"/>
+                <Label text="Create a pharmacy portal account to manage prescriptions, refills, and pickups."
+                       style="-fx-text-fill:#CCFBF1; -fx-font-size:12;"/>
+            </VBox>
+        </VBox>
+    </top>
 
     <center>
-        <StackPane>
-            <ScrollPane fitToWidth="true" maxWidth="620" style="-fx-background-color: transparent;" pannable="true">
-                <content>
-                    <VBox styleClass="card" spacing="14" maxWidth="620">
-                        <padding>
-                            <Insets top="26" right="26" bottom="26" left="26"/>
-                        </padding>
+        <ScrollPane fitToWidth="true"
+                    style="-fx-background-color:transparent; -fx-border-color:transparent;">
+            <content>
+                <StackPane style="-fx-padding:22;">
+                    <VBox maxWidth="720"
+                          spacing="14"
+                          style="-fx-background-color:white;
+                                 -fx-background-radius:20;
+                                 -fx-border-radius:20;
+                                 -fx-border-color:#CCFBF1;
+                                 -fx-padding:26;
+                                 -fx-effect:dropshadow(gaussian, rgba(15,118,110,0.16), 22, 0.15, 0, 6);">
 
-                        <Label text="Pharmacy Sign Up" styleClass="title"/>
-                        <Label text="Claim your pharmacy location so only authorized staff can view and fill prescriptions sent there." styleClass="subtitle" wrapText="true"/>
-
-                        <VBox spacing="8">
-                            <Label text="Pharmacy Name" styleClass="label"/>
-                            <TextField fx:id="pharmacyNameField" promptText="Community Pharmacy"/>
+                        <VBox spacing="5">
+                            <Label text="Create Pharmacy Account"
+                                   style="-fx-text-fill:#0F172A; -fx-font-size:25; -fx-font-weight:bold;"/>
+                            <Label text="Claim your pharmacy location so only authorized staff can view and fill prescriptions sent there."
+                                   wrapText="true"
+                                   style="-fx-text-fill:#64748B; -fx-font-size:13;"/>
                         </VBox>
 
-                        <VBox spacing="8">
-                            <Label text="Email" styleClass="label"/>
-                            <TextField fx:id="emailField" promptText="pharmacy@example.com"/>
+                        <VBox spacing="7">
+                            <Label text="Pharmacy Name" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                            <TextField fx:id="pharmacyNameField" promptText="Community Pharmacy"
+                                       style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
                         </VBox>
 
-                        <HBox spacing="12">
-                            <VBox spacing="8" HBox.hgrow="ALWAYS">
-                                <Label text="Password" styleClass="label"/>
-                                <PasswordField fx:id="passwordField" promptText="At least 6 characters"/>
-                            </VBox>
-                            <VBox spacing="8" HBox.hgrow="ALWAYS">
-                                <Label text="Confirm Password" styleClass="label"/>
-                                <PasswordField fx:id="confirmPasswordField" promptText="Re-enter password"/>
-                            </VBox>
-                        </HBox>
-
-                        <VBox spacing="8">
-                            <Label text="Phone Number" styleClass="label"/>
-                            <TextField fx:id="phoneField" promptText="(555) 123-4567"/>
-                        </VBox>
-
-                        <VBox spacing="8">
-                            <Label text="Street Address" styleClass="label"/>
-                            <TextField fx:id="addressField" promptText="123 Main St"/>
+                        <VBox spacing="7">
+                            <Label text="Email" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                            <TextField fx:id="emailField" promptText="pharmacy@example.com"
+                                       style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
                         </VBox>
 
                         <HBox spacing="12">
-                            <VBox spacing="8" HBox.hgrow="ALWAYS">
-                                <Label text="City" styleClass="label"/>
-                                <TextField fx:id="cityField" promptText="Farmingdale"/>
+                            <VBox spacing="7" HBox.hgrow="ALWAYS">
+                                <Label text="Password" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                                <PasswordField fx:id="passwordField" promptText="At least 6 characters"
+                                               style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
                             </VBox>
-                            <VBox spacing="8" prefWidth="90">
-                                <Label text="State" styleClass="label"/>
-                                <TextField fx:id="stateField" promptText="NY"/>
-                            </VBox>
-                            <VBox spacing="8" prefWidth="120">
-                                <Label text="ZIP" styleClass="label"/>
-                                <TextField fx:id="zipField" promptText="11735"/>
+
+                            <VBox spacing="7" HBox.hgrow="ALWAYS">
+                                <Label text="Confirm Password" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                                <PasswordField fx:id="confirmPasswordField" promptText="Re-enter password"
+                                               style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
                             </VBox>
                         </HBox>
 
-                        <Label text="Use the same address doctors will send prescriptions to. That address becomes your claimed location." styleClass="muted" wrapText="true"/>
+                        <VBox spacing="7">
+                            <Label text="Phone Number" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                            <TextField fx:id="phoneField" promptText="(555) 123-4567"
+                                       style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
+                        </VBox>
 
-                        <Label fx:id="errorLabel" text="" managed="false" visible="false" styleClass="error"/>
+                        <VBox spacing="7">
+                            <Label text="Street Address" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                            <TextField fx:id="addressField" promptText="123 Main St"
+                                       style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
+                        </VBox>
+
+                        <HBox spacing="12">
+                            <VBox spacing="7" HBox.hgrow="ALWAYS">
+                                <Label text="City" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                                <TextField fx:id="cityField" promptText="Farmingdale"
+                                           style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
+                            </VBox>
+
+                            <VBox spacing="7" prefWidth="100">
+                                <Label text="State" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                                <TextField fx:id="stateField" promptText="NY"
+                                           style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
+                            </VBox>
+
+                            <VBox spacing="7" prefWidth="130">
+                                <Label text="ZIP" style="-fx-text-fill:#0F766E; -fx-font-weight:bold;"/>
+                                <TextField fx:id="zipField" promptText="11735"
+                                           style="-fx-background-radius:10; -fx-border-radius:10; -fx-padding:10;"/>
+                            </VBox>
+                        </HBox>
+
+                        <Label text="Use the same address doctors will send prescriptions to. This becomes your claimed pharmacy location."
+                               wrapText="true"
+                               style="-fx-text-fill:#64748B; -fx-font-size:12;
+                                      -fx-background-color:#F0FDFA; -fx-background-radius:10; -fx-padding:10;"/>
+
+                        <Label fx:id="errorLabel"
+                               text=""
+                               managed="false"
+                               visible="false"
+                               style="-fx-text-fill:#DC2626; -fx-font-size:13; -fx-font-weight:bold;"/>
 
                         <Button text="Create Pharmacy Account"
                                 onAction="#onCreatePharmacyAccount"
-                                styleClass="primary-btn"
-                                maxWidth="1.7976931348623157E308"/>
+                                maxWidth="1.7976931348623157E308"
+                                style="-fx-background-color:linear-gradient(to right, #0F766E, #14B8A6);
+                                       -fx-text-fill:white; -fx-font-size:14; -fx-font-weight:bold;
+                                       -fx-background-radius:12; -fx-padding:12 20;"/>
 
-                        <Button text="Back"
+                        <Button text="Back to Pharmacy Portal"
                                 onAction="#onBack"
-                                styleClass="ghost-btn"
-                                maxWidth="1.7976931348623157E308"/>
+                                maxWidth="1.7976931348623157E308"
+                                style="-fx-background-color:#E2E8F0; -fx-text-fill:#334155;
+                                       -fx-font-size:14; -fx-font-weight:bold;
+                                       -fx-background-radius:12; -fx-padding:11 20;"/>
                     </VBox>
-                </content>
-            </ScrollPane>
-        </StackPane>
+                </StackPane>
+            </content>
+        </ScrollPane>
     </center>
-
 </BorderPane>

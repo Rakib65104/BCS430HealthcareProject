@@ -1494,22 +1494,31 @@ public class FirebaseService {
                 if (message == null) {
                     throw new RuntimeException("Message cannot be null.");
                 }
+
                 int participantCount = 0;
+
                 if (message.getDoctorUid() != null && !message.getDoctorUid().isBlank()) {
                     participantCount++;
                 }
+
                 if (message.getPharmacyUid() != null && !message.getPharmacyUid().isBlank()) {
                     participantCount++;
                 }
+
                 if (message.getPatientUid() != null && !message.getPatientUid().isBlank()) {
                     participantCount++;
                 }
+
                 if (participantCount < 2) {
                     throw new RuntimeException("At least two conversation participants are required.");
                 }
+
                 if (message.getMessageText() == null || message.getMessageText().isBlank()) {
                     throw new RuntimeException("Message text is required.");
                 }
+
+                String cleanText = MessageCensor.censor(message.getMessageText());
+                message.setMessageText(cleanText);
 
                 String messageId = firestore.collection(MESSAGES_COLLECTION).document().getId();
                 message.setMessageId(messageId);
@@ -1528,6 +1537,7 @@ public class FirebaseService {
                         .get();
 
                 return messageId;
+
             } catch (Exception e) {
                 throw new RuntimeException("Failed to save message: " + e.getMessage(), e);
             }

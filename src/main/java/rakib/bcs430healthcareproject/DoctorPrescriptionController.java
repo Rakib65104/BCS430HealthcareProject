@@ -8,6 +8,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -17,6 +18,7 @@ public class DoctorPrescriptionController {
 
     @FXML private Label patientNameLabel;
     @FXML private Label doctorNameLabel;
+    @FXML private ComboBox<PharmacyOption> pharmacySelectionComboBox;
     @FXML private TextField pharmacyNameField;
     @FXML private TextField pharmacyStreetAddressField;
     @FXML private TextField pharmacyCityField;
@@ -39,6 +41,7 @@ public class DoctorPrescriptionController {
     private RxNormMedicationService rxNormMedicationService;
     private UserContext userContext;
     private PatientProfile selectedPatient;
+    private List<PharmacyProfile> availablePharmacies = new ArrayList<>();
 
     @FXML
     public void initialize() {
@@ -67,9 +70,69 @@ public class DoctorPrescriptionController {
                         : "Prescribing Doctor"
         );
 
+        loadPharmacies();
         populatePreferredPharmacy();
         medicationResultsComboBox.setDisable(true);
         medicationResultsComboBox.setOnAction(event -> onMedicationSelected());
+    }
+
+    private void loadPharmacies() {
+        firebaseService.getAllPharmacies()
+                .thenAccept(pharmacies -> Platform.runLater(() -> {
+                    availablePharmacies = pharmacies != null ? pharmacies : new ArrayList<>();
+                    pharmacySelectionComboBox.getItems().clear();
+                    
+                    // Add a "Select a pharmacy" placeholder
+                    pharmacySelectionComboBox.getItems().add(new PharmacyOption(null, "Select a pharmacy", "", ""));
+                    
+                    // Add all available pharmacies
+                    for (PharmacyProfile pharmacy : availablePharmacies) {
+                        PharmacyOption option = new PharmacyOption(
+                                pharmacy.getUid(),
+                                pharmacy.getPharmacyName(),
+                                pharmacy.getFullAddress(),
+                                pharmacy.getPhoneNumber()
+                        );
+                        pharmacySelectionComboBox.getItems().add(option);
+                    }
+                    
+                    pharmacySelectionComboBox.getSelectionModel().selectFirst();
+                    pharmacySelectionComboBox.setOnAction(event -> onPharmacySelected());
+                }))
+                .exceptionally(e -> {
+                    Platform.runLater(() -> showStatus("Failed to load pharmacies: " + cleanErrorMessage(e), true));
+                    return null;
+                });
+    }
+
+    private void onPharmacySelected() {
+        PharmacyOption selectedOption = pharmacySelectionComboBox.getValue();
+        
+        if (selectedOption == null || selectedOption.uid == null || selectedOption.uid.isBlank()) {
+            // Clear the fields if placeholder is selected
+            pharmacyNameField.clear();
+            pharmacyStreetAddressField.clear();
+            pharmacyCityField.clear();
+            pharmacyStateField.clear();
+            pharmacyZipField.clear();
+            pharmacyPhoneField.clear();
+            return;
+        }
+        
+        // Find the selected pharmacy and populate the fields
+        PharmacyProfile selectedPharmacy = availablePharmacies.stream()
+                .filter(p -> selectedOption.uid.equals(p.getUid()))
+                .findFirst()
+                .orElse(null);
+        
+        if (selectedPharmacy != null) {
+            pharmacyNameField.setText(selectedPharmacy.getPharmacyName() != null ? selectedPharmacy.getPharmacyName() : "");
+            pharmacyStreetAddressField.setText(selectedPharmacy.getAddressLine() != null ? selectedPharmacy.getAddressLine() : "");
+            pharmacyCityField.setText(selectedPharmacy.getCity() != null ? selectedPharmacy.getCity() : "");
+            pharmacyStateField.setText(selectedPharmacy.getState() != null ? selectedPharmacy.getState() : "");
+            pharmacyZipField.setText(selectedPharmacy.getZip() != null ? selectedPharmacy.getZip() : "");
+            pharmacyPhoneField.setText(selectedPharmacy.getPhoneNumber() != null ? selectedPharmacy.getPhoneNumber() : "");
+        }
     }
 
     @FXML
@@ -240,6 +303,7 @@ public class DoctorPrescriptionController {
     }
 
     private void clearForm() {
+        pharmacySelectionComboBox.getSelectionModel().selectFirst();
         pharmacyNameField.clear();
         pharmacyStreetAddressField.clear();
         pharmacyCityField.clear();
@@ -358,6 +422,28 @@ public class DoctorPrescriptionController {
             return parsed > 0 ? parsed : null;
         } catch (NumberFormatException ignored) {
             return null;
+        }
+    }
+
+    private static class PharmacyOption {
+        private final String uid;
+        private final String name;
+        private final String address;
+        private final String phoneNumber;
+
+        private PharmacyOption(String uid, String name, String address, String phoneNumber) {
+            this.uid = uid;
+            this.name = name;
+            this.address = address;
+            this.phoneNumber = phoneNumber;
+        }
+
+        @Override
+        public String toString() {
+            if (uid == null || uid.isBlank()) {
+                return name;
+            }
+            return name + " | " + address + " | " + phoneNumber;
         }
     }
 }

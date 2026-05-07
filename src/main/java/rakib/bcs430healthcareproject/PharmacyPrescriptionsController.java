@@ -161,7 +161,7 @@ public class PharmacyPrescriptionsController {
                 pickupButton.setOnAction(event -> confirmPatientPickup(prescription, pickupButton));
                 actionRow.getChildren().add(pickupButton);
             }
-        } else {
+        } else if (!Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
             Button fillButton = new Button("Mark Filled");
             fillButton.setStyle("-fx-background-color: #14B8A6; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
             fillButton.setOnAction(event -> markPrescriptionFilled(prescription, fillButton));

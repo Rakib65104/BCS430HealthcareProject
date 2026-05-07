@@ -187,8 +187,61 @@ public class ProfileController {
         chronicConditionsArea.setText(currentProfile.getChronicConditions() != null ? currentProfile.getChronicConditions() : "");
         medicalHistoryArea.setText(currentProfile.getMedicalHistory() != null ? currentProfile.getMedicalHistory() : "");
         
+        // Load and append prescriptions to the medications area
+        loadAndAppendPrescriptions();
+        
         setFieldsEditable(false);
         updateInsuranceNumberAvailability();
+    }
+
+    private void loadAndAppendPrescriptions() {
+        if (currentProfile == null || currentProfile.getUid() == null) {
+            return;
+        }
+
+        firebaseService.getPatientPrescriptions(currentProfile.getUid())
+                .thenAccept(prescriptions -> javafx.application.Platform.runLater(() -> {
+                    if (prescriptions != null && !prescriptions.isEmpty()) {
+                        StringBuilder medicationList = new StringBuilder(currentMedicationsArea.getText());
+                        
+                        // Add prescriptions header if there's existing content
+                        if (medicationList.length() > 0 && !medicationList.toString().endsWith("\n")) {
+                            medicationList.append("\n\n");
+                        }
+                        
+                        // Add prescriptions section
+                        if (medicationList.length() > 0) {
+                            medicationList.append("--- Current Prescriptions ---\n");
+                        } else {
+                            medicationList.append("Current Prescriptions:\n");
+                        }
+                        
+                        // Add each prescription
+                        for (Prescription prescription : prescriptions) {
+                            if ("CANCELLED".equalsIgnoreCase(prescription.getStatus())) {
+                                continue;
+                            }
+                            
+                            medicationList.append("\n• Medication: ").append(prescription.getMedicationName() != null ? prescription.getMedicationName() : "Unknown");
+                            medicationList.append("\n  Dosage: ").append(prescription.getDosage() != null ? prescription.getDosage() : "Not specified");
+                            medicationList.append("\n  Quantity: ").append(prescription.getQuantity() != null ? prescription.getQuantity() : "Not specified");
+                            medicationList.append("\n  Refills: ").append(prescription.getRefillDetails() != null ? prescription.getRefillDetails() : "Not specified");
+                            if (prescription.getDoctorName() != null) {
+                                medicationList.append("\n  Prescribed by: Dr. ").append(prescription.getDoctorName());
+                            }
+                            if (prescription.getHospitalName() != null) {
+                                medicationList.append("\n  Prescribed by: ").append(prescription.getHospitalName());
+                            }
+                            medicationList.append("\n");
+                        }
+                        
+                        currentMedicationsArea.setText(medicationList.toString());
+                    }
+                }))
+                .exceptionally(e -> {
+                    System.err.println("Failed to load prescriptions: " + e.getMessage());
+                    return null;
+                });
     }
 
     @FXML

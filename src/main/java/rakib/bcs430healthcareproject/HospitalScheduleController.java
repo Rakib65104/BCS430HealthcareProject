@@ -305,6 +305,18 @@ public class HospitalScheduleController implements Initializable {
 
         Appointment appointment = selectedSchedule.getSourceAppointment();
 
+        // Show confirmation dialog
+        Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmDialog.setTitle("Confirm Cancellation");
+        confirmDialog.setHeaderText("Are you sure?");
+        confirmDialog.setContentText("Are you sure you want to cancel the appointment with " +
+                appointment.getPatientName() + " on " + appointment.getAppointmentDate() +
+                " at " + appointment.getAppointmentSlot() + "?");
+
+        if (confirmDialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+
         firebaseService.deleteAppointment(appointment.getAppointmentId())
                 .thenAccept(v -> Platform.runLater(() -> {
                     firebaseService.notifyPatient(

@@ -46,6 +46,12 @@
                            style="-fx-text-fill: #0F766E; -fx-font-size: 15; -fx-font-weight: bold;" />
 
                     <VBox spacing="6">
+                        <Label text="Select Pharmacy"
+                               style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
+                        <ComboBox fx:id="pharmacySelectionComboBox" promptText="Select a pharmacy from the list" />
+                    </VBox>
+
+                    <VBox spacing="6">
                         <Label text="Pharmacy Name"
                                style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
                         <TextField fx:id="pharmacyNameField" promptText="Enter the pharmacy name" />

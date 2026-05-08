@@ -1,7 +1,9 @@
 package rakib.bcs430healthcareproject;
 
 import com.google.cloud.firestore.annotation.DocumentId;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,6 +35,7 @@ public class PatientProfile {
     private String secondaryInsuranceCompany;
     private String secondaryInsurancePlanType;
     private String secondaryInsuranceGroupNumber;
+    private List<PatientInsurancePlan> additionalInsurancePlans = new ArrayList<>();
     private String preferredPharmacyUid;
     private String preferredPharmacyName;
     private String preferredPharmacyAddress;
@@ -128,6 +131,11 @@ public class PatientProfile {
     public String getSecondaryInsuranceGroupNumber() { return secondaryInsuranceGroupNumber; }
     public void setSecondaryInsuranceGroupNumber(String secondaryInsuranceGroupNumber) { this.secondaryInsuranceGroupNumber = secondaryInsuranceGroupNumber; }
 
+    public List<PatientInsurancePlan> getAdditionalInsurancePlans() { return additionalInsurancePlans; }
+    public void setAdditionalInsurancePlans(List<PatientInsurancePlan> additionalInsurancePlans) {
+        this.additionalInsurancePlans = additionalInsurancePlans == null ? new ArrayList<>() : additionalInsurancePlans;
+    }
+
     public String getPreferredPharmacyUid() { return preferredPharmacyUid; }
     public void setPreferredPharmacyUid(String preferredPharmacyUid) { this.preferredPharmacyUid = preferredPharmacyUid; }
 
@@ -204,6 +212,7 @@ public class PatientProfile {
         result.put("secondaryInsuranceCompany", secondaryInsuranceCompany);
         result.put("secondaryInsurancePlanType", secondaryInsurancePlanType);
         result.put("secondaryInsuranceGroupNumber", secondaryInsuranceGroupNumber);
+        result.put("additionalInsurancePlans", additionalInsurancePlans);
         result.put("preferredPharmacyUid", preferredPharmacyUid);
         result.put("preferredPharmacyName", preferredPharmacyName);
         result.put("preferredPharmacyAddress", preferredPharmacyAddress);

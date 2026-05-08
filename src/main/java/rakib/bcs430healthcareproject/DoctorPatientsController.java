@@ -87,10 +87,6 @@ public class DoctorPatientsController {
         Label phoneLabel = new Label("Phone: " + fallback(patient.getPhoneNumber()));
         phoneLabel.setStyle("-fx-text-fill: #475569; -fx-font-size: 13;");
 
-        Label medsLabel = new Label("Current Medications: " + fallback(patient.getCurrentMedications()));
-        medsLabel.setWrapText(true);
-        medsLabel.setStyle("-fx-text-fill: #475569; -fx-font-size: 13;");
-
         HBox buttonRow = new HBox(10);
 
         Button viewProfileButton = new Button("View Profile");
@@ -120,7 +116,7 @@ public class DoctorPatientsController {
                 spacer
         );
 
-        card.getChildren().addAll(nameLabel, emailLabel, phoneLabel, medsLabel, buttonRow);
+        card.getChildren().addAll(nameLabel, emailLabel, phoneLabel, buttonRow);
         return card;
     }
 

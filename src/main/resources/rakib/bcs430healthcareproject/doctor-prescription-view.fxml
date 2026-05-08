@@ -146,6 +146,17 @@
                                style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
                         <TextArea fx:id="instructionsArea" promptText="Enter directions for use and any pharmacist notes" wrapText="true" prefRowCount="4" />
                     </VBox>
+
+                    <HBox spacing="12" style="-fx-alignment: center-left;">
+                        <Button fx:id="addMedicationButton"
+                                text="Add Medication to List"
+                                onAction="#onAddMedicationToBatch"
+                                style="-fx-background-color: #0EA5E9; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;" />
+                        <Label text="Add multiple medications here, then send them together."
+                               style="-fx-text-fill: #64748B; -fx-font-size: 12;" />
+                    </HBox>
+
+                    <VBox fx:id="pendingPrescriptionsVBox" spacing="8" />
                 </VBox>
 
                 <Label fx:id="statusLabel"

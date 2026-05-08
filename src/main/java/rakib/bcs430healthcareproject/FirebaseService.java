@@ -1913,6 +1913,9 @@ public class FirebaseService {
                 if (!pharmacyProfile.getAddressNormalized().equals(prescriptionAddress)) {
                     throw new RuntimeException("This prescription is not assigned to your pharmacy.");
                 }
+                if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
+                    throw new RuntimeException("This prescription has already been picked up and cannot be marked filled again.");
+                }
 
                 prescription.setStatus(Prescription.STATUS_FILLED);
                 long filledAt = System.currentTimeMillis();

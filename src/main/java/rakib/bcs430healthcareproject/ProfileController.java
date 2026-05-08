@@ -1,5 +1,6 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -8,7 +9,9 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +38,8 @@ public class ProfileController {
     @FXML private VBox secondaryInsuranceSection;
     @FXML private Button addSecondaryInsuranceButton;
     @FXML private Button removeSecondaryInsuranceButton;
+    @FXML private VBox additionalInsurancePlansVBox;
+    @FXML private Button addAdditionalInsurancePlanButton;
     @FXML private ComboBox<PharmacyOption> preferredPickupPharmacyComboBox;
     @FXML private TextField emailField;
     @FXML private TextField phoneField;
@@ -62,6 +67,8 @@ public class ProfileController {
     private boolean isPharmacyReadOnlyView = false;
     private boolean secondaryInsuranceVisible = false;
     private List<PharmacyOption> pharmacyOptions = new ArrayList<>();
+    private final List<InsurancePlanRow> additionalInsuranceRows = new ArrayList<>();
+    private PauseTransition statusHideTransition;
 
     @FXML
     public void initialize() {
@@ -168,6 +175,7 @@ public class ProfileController {
         secondaryInsuranceGroupNumberField.setText(currentProfile.getSecondaryInsuranceGroupNumber() != null ? currentProfile.getSecondaryInsuranceGroupNumber() : "");
         secondaryInsuranceVisible = hasSecondaryInsuranceData();
         updateSecondaryInsuranceVisibility();
+        loadAdditionalInsurancePlans();
         selectPreferredPharmacy();
         
         String bloodType = currentProfile.getBloodType() != null ? currentProfile.getBloodType() : "Not specified";
@@ -326,6 +334,7 @@ public class ProfileController {
             currentProfile.setSecondaryInsuranceGroupNumber(readTrimmedText(secondaryInsuranceGroupNumberField));
         }
         currentProfile.setSecondaryInsuranceCompany(secondaryInsuranceCompany);
+        currentProfile.setAdditionalInsurancePlans(collectAdditionalInsurancePlans());
 
         PharmacyOption preferredOption = preferredPickupPharmacyComboBox.getValue();
         if (preferredOption == null || preferredOption.uid == null || preferredOption.uid.isBlank()) {
@@ -441,6 +450,25 @@ public class ProfileController {
     }
 
     @FXML
+    private void onAddAdditionalInsurancePlan() {
+        if (isReadOnlyPatientView()) {
+            showStatus(readOnlyViewMessage(), true);
+            return;
+        }
+        InsurancePlanRow row = createAdditionalInsuranceRow(new PatientInsurancePlan());
+        additionalInsuranceRows.add(row);
+        additionalInsurancePlansVBox.getChildren().add(row.container);
+        if (!isEditMode) {
+            isEditMode = true;
+            setFieldsEditable(true);
+            updateButtonVisibility();
+        } else {
+            row.setEditable(true);
+        }
+        row.companyComboBox.requestFocus();
+    }
+
+    @FXML
     private void onBack() {
         if (isDoctorPatientView) {
             userContext.clearSelectedPatientProfile();
@@ -492,6 +520,10 @@ public class ProfileController {
         secondaryInsuranceGroupNumberField.setEditable(editable);
         addSecondaryInsuranceButton.setDisable(!editable && !secondaryInsuranceVisible);
         removeSecondaryInsuranceButton.setDisable(!editable);
+        addAdditionalInsurancePlanButton.setDisable(!editable);
+        for (InsurancePlanRow row : additionalInsuranceRows) {
+            row.setEditable(editable);
+        }
         preferredPickupPharmacyComboBox.setDisable(!editable);
         bloodTypeComboBox.setDisable(!editable);
         vaccinationStatusComboBox.setDisable(!editable);
@@ -509,9 +541,8 @@ public class ProfileController {
      * Update button visibility based on current mode
      */
     private void updateButtonVisibility() {
-        boolean showPastAppointmentsButton = !isPharmacyReadOnlyView;
-        pastAppointmentsButton.setManaged(showPastAppointmentsButton);
-        pastAppointmentsButton.setVisible(showPastAppointmentsButton);
+        pastAppointmentsButton.setManaged(true);
+        pastAppointmentsButton.setVisible(true);
 
         if (isReadOnlyPatientView()) {
             editButton.setManaged(false);
@@ -553,19 +584,17 @@ public class ProfileController {
             statusLabel.setStyle("-fx-text-fill: #27AE60; -fx-font-size: 11; -fx-padding: 5 0 0 0;");
         }
         
-        // Auto-hide status message after 5 seconds
+        if (statusHideTransition != null) {
+            statusHideTransition.stop();
+        }
+
         if (!isError) {
-            javafx.application.Platform.runLater(() -> {
-                try {
-                    Thread.sleep(5000);
-                    Platform.runLater(() -> {
-                        statusLabel.setVisible(false);
-                        statusLabel.setManaged(false);
-                    });
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+            statusHideTransition = new PauseTransition(Duration.seconds(5));
+            statusHideTransition.setOnFinished(event -> {
+                statusLabel.setVisible(false);
+                statusLabel.setManaged(false);
             });
+            statusHideTransition.play();
         }
     }
 
@@ -737,6 +766,8 @@ public class ProfileController {
         addSecondaryInsuranceButton.setVisible(!visible && !isReadOnlyPatientView());
         removeSecondaryInsuranceButton.setManaged(visible && !isReadOnlyPatientView());
         removeSecondaryInsuranceButton.setVisible(visible && !isReadOnlyPatientView());
+        addAdditionalInsurancePlanButton.setManaged(!isReadOnlyPatientView());
+        addAdditionalInsurancePlanButton.setVisible(!isReadOnlyPatientView());
     }
 
     private boolean hasSecondaryInsuranceData() {
@@ -766,6 +797,81 @@ public class ProfileController {
             currentProfile.setSecondaryInsurancePlanType(null);
             currentProfile.setSecondaryInsuranceGroupNumber(null);
         }
+    }
+
+    private void loadAdditionalInsurancePlans() {
+        additionalInsuranceRows.clear();
+        additionalInsurancePlansVBox.getChildren().clear();
+        if (currentProfile == null || currentProfile.getAdditionalInsurancePlans() == null) {
+            return;
+        }
+
+        for (PatientInsurancePlan plan : currentProfile.getAdditionalInsurancePlans()) {
+            if (plan == null || !hasInsurancePlanData(plan)) {
+                continue;
+            }
+            InsurancePlanRow row = createAdditionalInsuranceRow(plan);
+            additionalInsuranceRows.add(row);
+            additionalInsurancePlansVBox.getChildren().add(row.container);
+        }
+    }
+
+    private InsurancePlanRow createAdditionalInsuranceRow(PatientInsurancePlan plan) {
+        ComboBox<String> companyComboBox = new ComboBox<>();
+        companyComboBox.getItems().addAll(InsuranceSupport.commonInsuranceProviders());
+        companyComboBox.setEditable(true);
+        companyComboBox.setPromptText("Select or type insurance company");
+        companyComboBox.setValue(defaultText(plan.getCompany(), ""));
+
+        TextField numberField = new TextField(defaultText(plan.getInsuranceNumber(), ""));
+        numberField.setPromptText("Insurance number");
+
+        ComboBox<String> planTypeComboBox = new ComboBox<>();
+        planTypeComboBox.getItems().addAll("Not specified", "HMO", "PPO", "EPO", "POS", "HDHP", "Medicaid", "Medicare", "Other");
+        planTypeComboBox.setValue(defaultText(plan.getPlanType(), "Not specified"));
+
+        TextField groupNumberField = new TextField(defaultText(plan.getGroupNumber(), ""));
+        groupNumberField.setPromptText("Group number");
+
+        Button removeButton = new Button("Remove");
+        removeButton.setStyle("-fx-padding: 7 12; -fx-font-size: 12; -fx-background-color: #E74C3C; -fx-text-fill: white; -fx-cursor: hand;");
+
+        VBox companyBox = new VBox(5, new Label("Insurance Company"), companyComboBox);
+        VBox numberBox = new VBox(5, new Label("Insurance Number"), numberField);
+        VBox planBox = new VBox(5, new Label("Plan Type"), planTypeComboBox);
+        VBox groupBox = new VBox(5, new Label("Group Number"), groupNumberField);
+        HBox fields = new HBox(12, companyBox, numberBox, planBox, groupBox, removeButton);
+        fields.setStyle("-fx-alignment: bottom-left;");
+
+        VBox container = new VBox(8, new Label("Additional Insurance Plan"), fields);
+        container.setStyle("-fx-padding: 12; -fx-background-color: #F8FAFC; -fx-background-radius: 8; -fx-border-color: #E2E8F0; -fx-border-radius: 8;");
+
+        InsurancePlanRow row = new InsurancePlanRow(container, companyComboBox, numberField, planTypeComboBox, groupNumberField, removeButton);
+        removeButton.setOnAction(event -> {
+            additionalInsuranceRows.remove(row);
+            additionalInsurancePlansVBox.getChildren().remove(container);
+        });
+        row.setEditable(isEditMode && !isReadOnlyPatientView());
+        return row;
+    }
+
+    private List<PatientInsurancePlan> collectAdditionalInsurancePlans() {
+        List<PatientInsurancePlan> plans = new ArrayList<>();
+        for (InsurancePlanRow row : additionalInsuranceRows) {
+            PatientInsurancePlan plan = row.toPlan();
+            if (hasInsurancePlanData(plan)) {
+                plans.add(plan);
+            }
+        }
+        return plans;
+    }
+
+    private boolean hasInsurancePlanData(PatientInsurancePlan plan) {
+        return plan != null
+                && (hasText(plan.getCompany())
+                || hasText(plan.getInsuranceNumber())
+                || hasText(plan.getPlanType())
+                || hasText(plan.getGroupNumber()));
     }
 
     private boolean hasText(String value) {
@@ -802,6 +908,48 @@ public class ProfileController {
                 return name;
             }
             return name + " | " + address + " | " + phoneNumber;
+        }
+    }
+
+    private class InsurancePlanRow {
+        private final VBox container;
+        private final ComboBox<String> companyComboBox;
+        private final TextField numberField;
+        private final ComboBox<String> planTypeComboBox;
+        private final TextField groupNumberField;
+        private final Button removeButton;
+
+        private InsurancePlanRow(VBox container,
+                                 ComboBox<String> companyComboBox,
+                                 TextField numberField,
+                                 ComboBox<String> planTypeComboBox,
+                                 TextField groupNumberField,
+                                 Button removeButton) {
+            this.container = container;
+            this.companyComboBox = companyComboBox;
+            this.numberField = numberField;
+            this.planTypeComboBox = planTypeComboBox;
+            this.groupNumberField = groupNumberField;
+            this.removeButton = removeButton;
+        }
+
+        private void setEditable(boolean editable) {
+            companyComboBox.setDisable(!editable);
+            companyComboBox.setEditable(editable);
+            numberField.setEditable(editable);
+            planTypeComboBox.setDisable(!editable);
+            groupNumberField.setEditable(editable);
+            removeButton.setManaged(editable && !isReadOnlyPatientView());
+            removeButton.setVisible(editable && !isReadOnlyPatientView());
+        }
+
+        private PatientInsurancePlan toPlan() {
+            return new PatientInsurancePlan(
+                    readInsuranceCompany(companyComboBox),
+                    readTrimmedText(numberField),
+                    readInsurancePlanType(planTypeComboBox),
+                    readTrimmedText(groupNumberField)
+            );
         }
     }
 }

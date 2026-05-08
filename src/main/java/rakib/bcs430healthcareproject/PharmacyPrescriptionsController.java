@@ -83,7 +83,8 @@ public class PharmacyPrescriptionsController {
         List<Prescription> filteredPrescriptions = new ArrayList<>();
         for (Prescription prescription : allPrescriptions) {
             String patientName = valueOrDefault(prescription.getPatientName(), "").toLowerCase();
-            if (query.isBlank() || patientName.contains(query)) {
+            String medicationName = valueOrDefault(getMedicationName(prescription), "").toLowerCase();
+            if (query.isBlank() || patientName.contains(query) || medicationName.contains(query)) {
                 filteredPrescriptions.add(prescription);
             }
         }
@@ -148,6 +149,8 @@ public class PharmacyPrescriptionsController {
         viewProfileButton.setOnAction(event -> viewPatientProfile(prescription, viewProfileButton));
         actionRow.getChildren().add(viewProfileButton);
 
+        boolean pickedUp = Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus());
+
         if (Prescription.STATUS_FILLED.equalsIgnoreCase(prescription.getStatus())
                 || Prescription.STATUS_REFILL_REQUESTED.equalsIgnoreCase(prescription.getStatus())) {
             Label filledLabel = new Label("Filled: " + formatTimestamp(prescription.getFilledAt())
@@ -161,14 +164,14 @@ public class PharmacyPrescriptionsController {
                 pickupButton.setOnAction(event -> confirmPatientPickup(prescription, pickupButton));
                 actionRow.getChildren().add(pickupButton);
             }
-        } else if (!Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
+        } else if (!pickedUp) {
             Button fillButton = new Button("Mark Filled");
             fillButton.setStyle("-fx-background-color: #14B8A6; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
             fillButton.setOnAction(event -> markPrescriptionFilled(prescription, fillButton));
             actionRow.getChildren().add(fillButton);
         }
 
-        if (!Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
+        if (!pickedUp) {
             Button messageButton = new Button("Message Patient");
             messageButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 8 16;");
             messageButton.setDisable(prescription.getPatientUid() == null || prescription.getPatientUid().isBlank());
@@ -176,7 +179,7 @@ public class PharmacyPrescriptionsController {
             actionRow.getChildren().add(messageButton);
         }
 
-        if (Prescription.STATUS_PICKED_UP.equalsIgnoreCase(prescription.getStatus())) {
+        if (pickedUp) {
             Label pickedUpLabel = new Label("Picked up: " + formatTimestamp(prescription.getPickedUpAt())
                     + " | Confirmed by " + valueOrDefault(prescription.getPickupConfirmedBy(), valueOrDefault(prescription.getPharmacyName(), "Pharmacy")));
             pickedUpLabel.setStyle("-fx-text-fill: #1D4ED8; -fx-font-size: 12; -fx-font-weight: bold;");

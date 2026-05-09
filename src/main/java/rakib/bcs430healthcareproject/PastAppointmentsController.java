@@ -175,7 +175,7 @@ public class PastAppointmentsController {
 
     @FXML
     private void onBack() {
-        if (userContext.isDoctor() || userContext.isHospital()) {
+        if (userContext.isDoctor() || userContext.isHospital() || userContext.isPharmacy()) {
             SceneRouter.go("patient-profile-view.fxml", "Patient Profile");
             return;
         }
@@ -183,7 +183,7 @@ public class PastAppointmentsController {
     }
 
     private String resolveTargetPatientUid() {
-        if (userContext.isDoctor() || userContext.isHospital()) {
+        if (userContext.isDoctor() || userContext.isHospital() || userContext.isPharmacy()) {
             if (userContext.getSelectedPatientUid() != null && !userContext.getSelectedPatientUid().isBlank()) {
                 return userContext.getSelectedPatientUid();
             }
@@ -194,7 +194,7 @@ public class PastAppointmentsController {
     }
 
     private String resolveTitle() {
-        if (userContext.isDoctor() || userContext.isHospital()) {
+        if (userContext.isDoctor() || userContext.isHospital() || userContext.isPharmacy()) {
             PatientProfile selectedProfile = userContext.getSelectedPatientProfile();
             String patientName = selectedProfile != null ? selectedProfile.getName() : "Patient";
             return patientName + " Past Appointments";

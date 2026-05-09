@@ -136,6 +136,14 @@
                             </VBox>
                         </HBox>
                     </VBox>
+
+                    <Label text="Additional Insurance Plans"
+                           style="-fx-text-fill: #475569; -fx-font-size: 13; -fx-font-weight: bold;"/>
+                    <VBox fx:id="additionalInsurancePlansVBox" spacing="10" />
+                    <Button fx:id="addAdditionalInsurancePlanButton"
+                            text="+ Add Another Insurance Plan"
+                            onAction="#onAddAdditionalInsurancePlan"
+                            style="-fx-padding: 8 14; -fx-font-size: 12; -fx-background-color: #0EA5E9; -fx-text-fill: white; -fx-cursor: hand;" />
                 </VBox>
 
                 <VBox style="-fx-border-color: #E8E8E8; -fx-border-radius: 5; -fx-padding: 20; -fx-spacing: 15; -fx-background-color: white;">

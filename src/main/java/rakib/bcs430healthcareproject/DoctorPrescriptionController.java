@@ -7,9 +7,12 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Controller for sending a prescription to a patient's pharmacy.
@@ -34,7 +37,9 @@ public class DoctorPrescriptionController {
     @FXML private TextField refillDetailsField;
     @FXML private TextField refillIntervalDaysField;
     @FXML private TextArea instructionsArea;
+    @FXML private VBox pendingPrescriptionsVBox;
     @FXML private Label statusLabel;
+    @FXML private Button addMedicationButton;
     @FXML private Button sendButton;
 
     private FirebaseService firebaseService;
@@ -42,6 +47,7 @@ public class DoctorPrescriptionController {
     private UserContext userContext;
     private PatientProfile selectedPatient;
     private List<PharmacyProfile> availablePharmacies = new ArrayList<>();
+    private final List<PrescriptionDraft> pendingPrescriptionDrafts = new ArrayList<>();
 
     @FXML
     public void initialize() {
@@ -137,6 +143,32 @@ public class DoctorPrescriptionController {
 
     @FXML
     private void onSendPrescription() {
+        String pharmacyValidation = validatePharmacyFields();
+        if (pharmacyValidation != null) {
+            showStatus(pharmacyValidation, true);
+            return;
+        }
+
+        PrescriptionDraft currentDraft = collectCurrentDraft();
+        boolean hasCurrentDraft = currentDraft.hasAnyMedicationData();
+        if (hasCurrentDraft) {
+            String currentValidation = currentDraft.validate();
+            if (currentValidation != null) {
+                showStatus(currentValidation, true);
+                return;
+            }
+        }
+
+        List<PrescriptionDraft> draftsToSend = new ArrayList<>(pendingPrescriptionDrafts);
+        if (hasCurrentDraft) {
+            draftsToSend.add(currentDraft);
+        }
+
+        if (draftsToSend.isEmpty()) {
+            showStatus("Add at least one medication before sending.", true);
+            return;
+        }
+
         String pharmacyName = safeTrim(pharmacyNameField.getText());
         String pharmacyStreetAddress = safeTrim(pharmacyStreetAddressField.getText());
         String pharmacyCity = safeTrim(pharmacyCityField.getText());
@@ -149,127 +181,52 @@ public class DoctorPrescriptionController {
                 pharmacyZip
         );
         String pharmacyPhone = safeTrim(pharmacyPhoneField.getText());
-        String medicationName = safeTrim(medicationNameField.getText());
-        String dosage = safeTrim(dosageField.getText());
-        String quantity = safeTrim(quantityField.getText());
-        String refillDetails = safeTrim(refillDetailsField.getText());
-        String refillIntervalText = safeTrim(refillIntervalDaysField.getText());
-        String medicationInformation = buildMedicationInformation(
-                medicationName,
-                dosage,
-                quantity,
-                refillDetails
-        );
-        Integer remainingRefills = PrescriptionRefillSupport.parseRemainingRefills(refillDetails);
-        Integer refillIntervalDays = parsePositiveInteger(refillIntervalText);
-        String instructions = safeTrim(instructionsArea.getText());
-
-        // Validation
-        if (pharmacyName.isBlank()) {
-            showStatus("Pharmacy name is required.", true);
-            return;
-        }
-
-        if (pharmacyStreetAddress.isBlank() || pharmacyCity.isBlank()
-                || pharmacyState.isBlank() || pharmacyZip.isBlank()) {
-            showStatus("Street address, city, state, and ZIP are required.", true);
-            return;
-        }
-
-        if (pharmacyState.length() != 2) {
-            showStatus("State must be a 2-letter abbreviation.", true);
-            return;
-        }
-
-        if (!pharmacyZip.matches("\\d{5}")) {
-            showStatus("ZIP code must be 5 digits.", true);
-            return;
-        }
-
-        if (pharmacyAddress.isBlank()) {
-            showStatus("Pharmacy address is required.", true);
-            return;
-        }
-
-        if (pharmacyPhone.isBlank()) {
-            showStatus("Pharmacy phone number is required.", true);
-            return;
-        }
-
-        if (medicationName.isBlank()) {
-            showStatus("Medication name is required.", true);
-            return;
-        }
-
-        if (dosage.isBlank()) {
-            showStatus("Dosage is required.", true);
-            return;
-        }
-
-        if (quantity.isBlank()) {
-            showStatus("Quantity is required.", true);
-            return;
-        }
-
-        if (refillDetails.isBlank()) {
-            showStatus("Refill details are required.", true);
-            return;
-        }
-
-        if (remainingRefills == null) {
-            showStatus("Refill details must include a count, like '2 refills remaining' or 'No refills remaining'.", true);
-            return;
-        }
-
-        if (refillIntervalText.isBlank()) {
-            showStatus("Refill interval is required.", true);
-            return;
-        }
-
-        if (refillIntervalDays == null) {
-            showStatus("Refill interval must be a whole number of days, like 30.", true);
-            return;
-        }
-
-        if (instructions.isBlank()) {
-            showStatus("Instructions are required.", true);
-            return;
-        }
-
-        Prescription prescription = new Prescription();
-        prescription.setDoctorUid(userContext.getUid());
-        prescription.setDoctorName(userContext.getName());
-        prescription.setPatientUid(selectedPatient.getUid());
-        prescription.setPatientName(selectedPatient.getName());
-        prescription.setPharmacyName(pharmacyName);
-        prescription.setPharmacyAddress(pharmacyAddress);
-        prescription.setPharmacyAddressNormalized(AddressNormalizer.normalize(pharmacyAddress));
-        prescription.setPharmacyPhoneNumber(pharmacyPhone);
-        prescription.setMedicationName(medicationName);
-        prescription.setDosage(dosage);
-        prescription.setQuantity(quantity);
-        prescription.setRefillDetails(PrescriptionRefillSupport.formatRemainingRefills(remainingRefills));
-        prescription.setRemainingRefills(remainingRefills);
-        prescription.setRefillIntervalDays(refillIntervalDays);
-        prescription.setMedicationInformation(medicationInformation);
-        prescription.setInstructions(instructions);
 
         sendButton.setDisable(true);
-        showStatus("Sending prescription...", false);
+        addMedicationButton.setDisable(true);
+        showStatus("Sending " + draftsToSend.size() + " prescription(s)...", false);
 
-        firebaseService.savePrescription(prescription)
-                .thenAccept(prescriptionId -> Platform.runLater(() -> {
-                    showStatus("Prescription sent successfully. Reference ID: " + prescriptionId, false);
+        List<CompletableFuture<String>> saves = draftsToSend.stream()
+                .map(draft -> firebaseService.savePrescription(buildPrescription(
+                        draft,
+                        pharmacyName,
+                        pharmacyAddress,
+                        pharmacyPhone
+                )))
+                .toList();
+
+        CompletableFuture.allOf(saves.toArray(new CompletableFuture[0]))
+                .thenRun(() -> Platform.runLater(() -> {
+                    showStatus(draftsToSend.size() + " prescription(s) sent successfully.", false);
                     sendButton.setDisable(false);
+                    addMedicationButton.setDisable(false);
+                    pendingPrescriptionDrafts.clear();
+                    renderPendingPrescriptions();
                     clearForm();
                 }))
                 .exceptionally(e -> {
                     Platform.runLater(() -> {
                         showStatus("Failed to send prescription: " + cleanErrorMessage(e), true);
                         sendButton.setDisable(false);
+                        addMedicationButton.setDisable(false);
                     });
                     return null;
                 });
+    }
+
+    @FXML
+    private void onAddMedicationToBatch() {
+        PrescriptionDraft draft = collectCurrentDraft();
+        String validation = draft.validate();
+        if (validation != null) {
+            showStatus(validation, true);
+            return;
+        }
+
+        pendingPrescriptionDrafts.add(draft);
+        renderPendingPrescriptions();
+        clearMedicationFields();
+        showStatus("Added " + draft.medicationName + ". Add another medication or send the list.", false);
     }
 
     @FXML
@@ -313,13 +270,22 @@ public class DoctorPrescriptionController {
         medicationSearchField.clear();
         medicationResultsComboBox.getItems().clear();
         medicationResultsComboBox.setDisable(true);
+        pendingPrescriptionDrafts.clear();
+        renderPendingPrescriptions();
+        clearMedicationFields();
+        populatePreferredPharmacy();
+    }
+
+    private void clearMedicationFields() {
+        medicationSearchField.clear();
+        medicationResultsComboBox.getItems().clear();
+        medicationResultsComboBox.setDisable(true);
         medicationNameField.clear();
         dosageField.clear();
         quantityField.clear();
         refillDetailsField.clear();
         refillIntervalDaysField.clear();
         instructionsArea.clear();
-        populatePreferredPharmacy();
     }
 
     private void showStatus(String message, boolean isError) {
@@ -422,6 +388,134 @@ public class DoctorPrescriptionController {
             return parsed > 0 ? parsed : null;
         } catch (NumberFormatException ignored) {
             return null;
+        }
+    }
+
+    private String validatePharmacyFields() {
+        String pharmacyName = safeTrim(pharmacyNameField.getText());
+        String pharmacyStreetAddress = safeTrim(pharmacyStreetAddressField.getText());
+        String pharmacyCity = safeTrim(pharmacyCityField.getText());
+        String pharmacyState = safeTrim(pharmacyStateField.getText()).toUpperCase();
+        String pharmacyZip = safeTrim(pharmacyZipField.getText());
+        String pharmacyAddress = PharmacyProfile.buildFullAddress(pharmacyStreetAddress, pharmacyCity, pharmacyState, pharmacyZip);
+        String pharmacyPhone = safeTrim(pharmacyPhoneField.getText());
+
+        if (pharmacyName.isBlank()) {
+            return "Pharmacy name is required.";
+        }
+        if (pharmacyStreetAddress.isBlank() || pharmacyCity.isBlank() || pharmacyState.isBlank() || pharmacyZip.isBlank()) {
+            return "Street address, city, state, and ZIP are required.";
+        }
+        if (pharmacyState.length() != 2) {
+            return "State must be a 2-letter abbreviation.";
+        }
+        if (!pharmacyZip.matches("\\d{5}")) {
+            return "ZIP code must be 5 digits.";
+        }
+        if (pharmacyAddress.isBlank()) {
+            return "Pharmacy address is required.";
+        }
+        if (pharmacyPhone.isBlank()) {
+            return "Pharmacy phone number is required.";
+        }
+        return null;
+    }
+
+    private PrescriptionDraft collectCurrentDraft() {
+        return new PrescriptionDraft(
+                safeTrim(medicationNameField.getText()),
+                safeTrim(dosageField.getText()),
+                safeTrim(quantityField.getText()),
+                safeTrim(refillDetailsField.getText()),
+                safeTrim(refillIntervalDaysField.getText()),
+                safeTrim(instructionsArea.getText())
+        );
+    }
+
+    private Prescription buildPrescription(PrescriptionDraft draft, String pharmacyName, String pharmacyAddress, String pharmacyPhone) {
+        Prescription prescription = new Prescription();
+        prescription.setDoctorUid(userContext.getUid());
+        prescription.setDoctorName(userContext.getName());
+        prescription.setPatientUid(selectedPatient.getUid());
+        prescription.setPatientName(selectedPatient.getName());
+        prescription.setPharmacyName(pharmacyName);
+        prescription.setPharmacyAddress(pharmacyAddress);
+        prescription.setPharmacyAddressNormalized(AddressNormalizer.normalize(pharmacyAddress));
+        prescription.setPharmacyPhoneNumber(pharmacyPhone);
+        prescription.setMedicationName(draft.medicationName);
+        prescription.setDosage(draft.dosage);
+        prescription.setQuantity(draft.quantity);
+        prescription.setRefillDetails(PrescriptionRefillSupport.formatRemainingRefills(draft.remainingRefills()));
+        prescription.setRemainingRefills(draft.remainingRefills());
+        prescription.setRefillIntervalDays(draft.refillIntervalDays());
+        prescription.setMedicationInformation(buildMedicationInformation(
+                draft.medicationName,
+                draft.dosage,
+                draft.quantity,
+                draft.refillDetails
+        ));
+        prescription.setInstructions(draft.instructions);
+        return prescription;
+    }
+
+    private void renderPendingPrescriptions() {
+        pendingPrescriptionsVBox.getChildren().clear();
+        for (int i = 0; i < pendingPrescriptionDrafts.size(); i++) {
+            PrescriptionDraft draft = pendingPrescriptionDrafts.get(i);
+            int index = i;
+            Label label = new Label((i + 1) + ". " + draft.medicationName + " | " + draft.dosage + " | Qty: " + draft.quantity);
+            label.setWrapText(true);
+            Button removeButton = new Button("Remove");
+            removeButton.setOnAction(event -> {
+                pendingPrescriptionDrafts.remove(index);
+                renderPendingPrescriptions();
+            });
+            HBox row = new HBox(10, label, removeButton);
+            row.setStyle("-fx-alignment: center-left; -fx-padding: 8; -fx-background-color: #F8FAFC; -fx-background-radius: 8;");
+            pendingPrescriptionsVBox.getChildren().add(row);
+        }
+    }
+
+    private class PrescriptionDraft {
+        private final String medicationName;
+        private final String dosage;
+        private final String quantity;
+        private final String refillDetails;
+        private final String refillIntervalText;
+        private final String instructions;
+
+        private PrescriptionDraft(String medicationName, String dosage, String quantity, String refillDetails, String refillIntervalText, String instructions) {
+            this.medicationName = medicationName;
+            this.dosage = dosage;
+            this.quantity = quantity;
+            this.refillDetails = refillDetails;
+            this.refillIntervalText = refillIntervalText;
+            this.instructions = instructions;
+        }
+
+        private boolean hasAnyMedicationData() {
+            return !medicationName.isBlank() || !dosage.isBlank() || !quantity.isBlank()
+                    || !refillDetails.isBlank() || !refillIntervalText.isBlank() || !instructions.isBlank();
+        }
+
+        private String validate() {
+            if (medicationName.isBlank()) return "Medication name is required.";
+            if (dosage.isBlank()) return "Dosage is required.";
+            if (quantity.isBlank()) return "Quantity is required.";
+            if (refillDetails.isBlank()) return "Refill details are required.";
+            if (remainingRefills() == null) return "Refill details must include a count, like '2 refills remaining' or 'No refills remaining'.";
+            if (refillIntervalText.isBlank()) return "Refill interval is required.";
+            if (refillIntervalDays() == null) return "Refill interval must be a whole number of days, like 30.";
+            if (instructions.isBlank()) return "Instructions are required.";
+            return null;
+        }
+
+        private Integer remainingRefills() {
+            return PrescriptionRefillSupport.parseRemainingRefills(refillDetails);
+        }
+
+        private Integer refillIntervalDays() {
+            return parsePositiveInteger(refillIntervalText);
         }
     }
 

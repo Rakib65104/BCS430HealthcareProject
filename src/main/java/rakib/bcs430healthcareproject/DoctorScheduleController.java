@@ -5,26 +5,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 
 import java.net.URL;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,6 +21,9 @@ public class DoctorScheduleController implements Initializable {
 
     private static final DateTimeFormatter TIME_FORMAT =
             DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH);
+
+    private static final DateTimeFormatter WEEK_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("EEE MM/dd hh:mm a", Locale.ENGLISH);
 
     @FXML private TableView<Schedule> appointmentTable;
     @FXML private TableColumn<Schedule, String> colTime;
@@ -56,7 +44,10 @@ public class DoctorScheduleController implements Initializable {
     @FXML private ComboBox<String> comboTime;
     @FXML private ComboBox<String> comboDuration;
     @FXML private ComboBox<String> comboType;
+    @FXML private ComboBox<String> comboScheduleView;
     @FXML private DatePicker scheduleDatePicker;
+    @FXML private Label lblScheduleTitle;
+    @FXML private Label lblDateHint;
 
     private final ObservableList<Schedule> scheduleList = FXCollections.observableArrayList();
 
@@ -92,11 +83,16 @@ public class DoctorScheduleController implements Initializable {
 
     private void setupInputs() {
         scheduleDatePicker.setValue(LocalDate.now());
+
+        comboScheduleView.getItems().addAll("Day View", "Week View");
+        comboScheduleView.setValue("Day View");
+
         comboTime.getItems().addAll(
                 "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM",
                 "11:30 AM", "01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM",
                 "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"
         );
+
         comboDuration.getItems().addAll("15 min", "30 min", "1 hr");
         comboType.getItems().addAll("Check-up", "Consultation", "Emergency", "Follow-up");
     }
@@ -113,21 +109,25 @@ public class DoctorScheduleController implements Initializable {
                             Appointment::resolveAppointmentEpochMillis,
                             Comparator.nullsLast(Long::compareTo)
                     ));
-                    refreshTableForDate();
+                    refreshTable();
                 }))
                 .exceptionally(e -> {
-                    Platform.runLater(() ->
-                            showAlert("Schedule Error", cleanErrorMessage(e)));
+                    Platform.runLater(() -> showAlert("Schedule Error", cleanErrorMessage(e)));
                     return null;
                 });
     }
 
     @FXML
     private void handleDateChange() {
-        refreshTableForDate();
+        refreshTable();
     }
 
-    private void refreshTableForDate() {
+    @FXML
+    private void handleViewModeChange() {
+        refreshTable();
+    }
+
+    private void refreshTable() {
         LocalDate selectedDate = scheduleDatePicker.getValue();
         scheduleList.clear();
 
@@ -135,10 +135,24 @@ public class DoctorScheduleController implements Initializable {
             return;
         }
 
+        boolean weekView = "Week View".equalsIgnoreCase(comboScheduleView.getValue());
+
+        LocalDate weekStart = selectedDate.with(DayOfWeek.MONDAY);
+        LocalDate weekEnd = weekStart.plusDays(6);
+
+        if (weekView) {
+            lblScheduleTitle.setText("Weekly Schedule");
+            lblDateHint.setText("Showing " + weekStart + " to " + weekEnd);
+        } else {
+            lblScheduleTitle.setText("Daily Schedule");
+            lblDateHint.setText("Showing appointments for " + selectedDate);
+        }
+
         for (Appointment appointment : allAppointments) {
             if (appointment == null || appointment.getAppointmentDate() == null) {
                 continue;
             }
+
             if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
                 continue;
             }
@@ -150,22 +164,36 @@ public class DoctorScheduleController implements Initializable {
                 continue;
             }
 
-            if (!selectedDate.equals(appointmentDate)) {
-                continue;
+            if (weekView) {
+                if (appointmentDate.isBefore(weekStart) || appointmentDate.isAfter(weekEnd)) {
+                    continue;
+                }
+            } else {
+                if (!selectedDate.equals(appointmentDate)) {
+                    continue;
+                }
             }
 
             Schedule schedule = new Schedule(
-                    formatAppointmentTime(appointment),
+                    formatAppointmentTime(appointment, weekView),
                     valueOrDefault(appointment.getPatientName(), "Unknown Patient"),
                     valueOrDefault(appointment.getReason(), "General"),
                     valueOrDefault(appointment.getStatus(), "SCHEDULED"),
                     buildScheduleNotes(appointment)
             );
+
             schedule.setSourceAppointment(appointment);
             scheduleList.add(schedule);
         }
 
-        scheduleList.sort(Comparator.comparing(schedule -> parseTime(schedule.getTime()), Comparator.nullsLast(LocalTime::compareTo)));
+        scheduleList.sort(Comparator.comparing(
+                schedule -> {
+                    Appointment appointment = schedule.getSourceAppointment();
+                    return appointment == null ? null : appointment.resolveAppointmentEpochMillis();
+                },
+                Comparator.nullsLast(Long::compareTo)
+        ));
+
         resetFormState();
     }
 
@@ -185,6 +213,7 @@ public class DoctorScheduleController implements Initializable {
 
     private void updateExistingAppointment(Appointment appointment) {
         long appointmentEpoch = resolveEpochMillis(scheduleDatePicker.getValue(), comboTime.getValue());
+
         appointment.setAppointmentDate(scheduleDatePicker.getValue().toString());
         appointment.setAppointmentSlot(comboTime.getValue());
         appointment.setAppointmentTime(scheduleDatePicker.getValue() + " " + comboTime.getValue());
@@ -216,6 +245,7 @@ public class DoctorScheduleController implements Initializable {
 
     private void createNewAppointment() {
         String patientName = txtName.getText().trim();
+
         firebaseService.getDoctorPatients(userContext.getUid())
                 .thenCompose(patients -> {
                     PatientProfile matchedPatient = patients.stream()
@@ -229,6 +259,7 @@ public class DoctorScheduleController implements Initializable {
                     }
 
                     long appointmentEpoch = resolveEpochMillis(scheduleDatePicker.getValue(), comboTime.getValue());
+
                     Appointment appointment = new Appointment(
                             matchedPatient.getUid(),
                             userContext.getUid(),
@@ -236,6 +267,7 @@ public class DoctorScheduleController implements Initializable {
                             userContext.getName(),
                             appointmentEpoch
                     );
+
                     appointment.setAppointmentDate(scheduleDatePicker.getValue().toString());
                     appointment.setAppointmentSlot(comboTime.getValue());
                     appointment.setAppointmentTime(scheduleDatePicker.getValue() + " " + comboTime.getValue());
@@ -298,14 +330,13 @@ public class DoctorScheduleController implements Initializable {
         txtName.setText(selectedAppt.getPatientName());
         txtContact.setText("");
         txtReason.setText(selectedAppt.getNotes());
-        comboTime.setValue(selectedAppt.getTime());
+        comboTime.setValue(formatAppointmentTime(appointment, false));
         comboType.setValue(selectedAppt.getType());
 
         if (appointment != null && appointment.getAppointmentDate() != null) {
             try {
                 scheduleDatePicker.setValue(LocalDate.parse(appointment.getAppointmentDate()));
             } catch (Exception ignored) {
-                // Keep the current date if parsing fails.
             }
         }
 
@@ -371,13 +402,12 @@ public class DoctorScheduleController implements Initializable {
 
         Appointment appointment = selectedAppt.getSourceAppointment();
 
-        // Show confirmation dialog
         Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
         confirmDialog.setTitle("Confirm Cancellation");
         confirmDialog.setHeaderText("Are you sure?");
-        confirmDialog.setContentText("Are you sure you want to cancel the appointment with " +
-                appointment.getPatientName() + " on " + appointment.getAppointmentDate() +
-                " at " + appointment.getAppointmentSlot() + "?");
+        confirmDialog.setContentText("Are you sure you want to cancel the appointment with "
+                + appointment.getPatientName() + " on " + appointment.getAppointmentDate()
+                + " at " + appointment.getAppointmentSlot() + "?");
 
         if (confirmDialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
             return;
@@ -414,6 +444,7 @@ public class DoctorScheduleController implements Initializable {
         }
 
         Appointment appointment = selectedAppt.getSourceAppointment();
+
         firebaseService.getPatientPrescriptionsForDoctor(appointment.getPatientUid(), userContext.getUid())
                 .thenAccept(prescriptions -> Platform.runLater(() -> showCompletionDialog(appointment, prescriptions)))
                 .exceptionally(e -> {
@@ -434,6 +465,7 @@ public class DoctorScheduleController implements Initializable {
                         showAlert("Patient Error", "The selected patient could not be loaded.");
                         return;
                     }
+
                     userContext.setSelectedPatientProfile(profile);
                     userContext.setSelectedPatientUid(profile.getUid());
                     SceneRouter.go(destinationFxml, title);
@@ -461,29 +493,17 @@ public class DoctorScheduleController implements Initializable {
 
         ComboBox<PrescriptionOption> prescriptionComboBox = new ComboBox<>();
         prescriptionComboBox.setMaxWidth(Double.MAX_VALUE);
+
         PrescriptionOption noneOption = PrescriptionOption.none();
         prescriptionComboBox.getItems().add(noneOption);
+
         if (prescriptions != null) {
             for (Prescription prescription : prescriptions) {
                 prescriptionComboBox.getItems().add(PrescriptionOption.fromPrescription(prescription));
             }
         }
 
-        PrescriptionOption selectedOption = noneOption;
-        for (PrescriptionOption option : prescriptionComboBox.getItems()) {
-            if (appointment.getPrescribedPrescriptionId() != null
-                    && appointment.getPrescribedPrescriptionId().equals(option.prescriptionId)) {
-                selectedOption = option;
-                break;
-            }
-            if (appointment.getPrescribedPrescriptionId() == null
-                    && appointment.getPrescribedMedications() != null
-                    && appointment.getPrescribedMedications().equals(option.displayText)) {
-                selectedOption = option;
-                break;
-            }
-        }
-        prescriptionComboBox.setValue(selectedOption);
+        prescriptionComboBox.setValue(noneOption);
 
         Label bookingNotesLabel = new Label("Original reason/notes: "
                 + valueOrDefault(appointment.getNotes(), "None provided"));
@@ -497,18 +517,22 @@ public class DoctorScheduleController implements Initializable {
                 prescriptionComboBox,
                 bookingNotesLabel
         );
+
         content.setPrefWidth(420);
         dialog.getDialogPane().setContent(content);
 
         ButtonType result = dialog.showAndWait().orElse(ButtonType.CANCEL);
+
         if (result == ButtonType.CANCEL) {
             return;
         }
 
         String summary = summaryArea.getText() == null ? "" : summaryArea.getText().trim();
+
         PrescriptionOption medicationOption = prescriptionComboBox.getValue() == null
                 ? noneOption
                 : prescriptionComboBox.getValue();
+
         if (summary.isBlank()) {
             showAlert("Validation Error", "A visit summary is required before completing the appointment.");
             return;
@@ -525,7 +549,8 @@ public class DoctorScheduleController implements Initializable {
                     firebaseService.notifyPatient(
                             appointment.getPatientUid(),
                             "Appointment Completed",
-                            "A visit summary from Dr. " + valueOrDefault(appointment.getDoctorName(), userContext.getName())
+                            "A visit summary from Dr. "
+                                    + valueOrDefault(appointment.getDoctorName(), userContext.getName())
                                     + " is now available in your appointments.",
                             "APPOINTMENT",
                             appointment.getAppointmentId()
@@ -553,28 +578,38 @@ public class DoctorScheduleController implements Initializable {
         if (time == null || time.isBlank()) {
             return null;
         }
+
         return LocalTime.parse(time.trim().toUpperCase(Locale.ENGLISH), TIME_FORMAT);
     }
 
-    private String formatAppointmentTime(Appointment appointment) {
+    private String formatAppointmentTime(Appointment appointment, boolean weekView) {
+        Long epoch = appointment.resolveAppointmentEpochMillis();
+
+        if (epoch != null) {
+            LocalDateTime dateTime = LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(epoch),
+                    ZoneId.systemDefault()
+            );
+
+            return weekView
+                    ? dateTime.format(WEEK_TIME_FORMAT)
+                    : dateTime.format(TIME_FORMAT);
+        }
+
         if (appointment.getAppointmentSlot() != null && !appointment.getAppointmentSlot().isBlank()) {
             return appointment.getAppointmentSlot();
         }
 
-        Long epoch = appointment.resolveAppointmentEpochMillis();
-        if (epoch == null) {
-            return "";
-        }
-
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneId.systemDefault())
-                .format(TIME_FORMAT);
+        return "";
     }
 
     private String buildScheduleNotes(Appointment appointment) {
-        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus()) && appointment.getVisitSummary() != null
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())
+                && appointment.getVisitSummary() != null
                 && !appointment.getVisitSummary().isBlank()) {
             return appointment.getVisitSummary();
         }
+
         return valueOrDefault(appointment.getNotes(), "");
     }
 
@@ -584,6 +619,7 @@ public class DoctorScheduleController implements Initializable {
         }
 
         Throwable cause = throwable;
+
         while (cause.getCause() != null) {
             cause = cause.getCause();
         }
@@ -631,12 +667,15 @@ public class DoctorScheduleController implements Initializable {
             String medicationName = prescription.getMedicationName() == null || prescription.getMedicationName().isBlank()
                     ? "Medication"
                     : prescription.getMedicationName();
+
             String dosage = prescription.getDosage() == null || prescription.getDosage().isBlank()
                     ? "Dosage not listed"
                     : prescription.getDosage();
+
             String pharmacyName = prescription.getPharmacyName() == null || prescription.getPharmacyName().isBlank()
                     ? "Pharmacy"
                     : prescription.getPharmacyName();
+
             return new PrescriptionOption(
                     prescription.getPrescriptionId(),
                     medicationName + " (" + dosage + ") sent to " + pharmacyName

@@ -5,25 +5,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 
 import java.net.URL;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,15 +22,23 @@ public class HospitalScheduleController implements Initializable {
     private static final DateTimeFormatter TIME_FORMAT =
             DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH);
 
+    private static final DateTimeFormatter WEEK_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("EEE MM/dd hh:mm a", Locale.ENGLISH);
+
     @FXML private TableView<Schedule> appointmentTable;
     @FXML private TableColumn<Schedule, String> colTime;
     @FXML private TableColumn<Schedule, String> colPatient;
+    @FXML private TableColumn<Schedule, String> colDoctor;
+    @FXML private TableColumn<Schedule, String> colDepartment;
     @FXML private TableColumn<Schedule, String> colType;
     @FXML private TableColumn<Schedule, String> colStatus;
     @FXML private TableColumn<Schedule, String> colNotes;
 
     @FXML private Label scheduleSummaryLabel;
+    @FXML private Label scheduleTitleLabel;
     @FXML private DatePicker scheduleDatePicker;
+    @FXML private ComboBox<String> comboScheduleView;
+
     @FXML private Button btnReschedule;
     @FXML private Button btnPrescription;
     @FXML private Button btnEditPatientProfile;
@@ -66,21 +60,32 @@ public class HospitalScheduleController implements Initializable {
         }
 
         setupTable();
-        scheduleDatePicker.setValue(LocalDate.now());
+        setupInputs();
         loadAppointments();
     }
 
     private void setupTable() {
         colTime.setCellValueFactory(cell -> cell.getValue().timeProperty());
         colPatient.setCellValueFactory(cell -> cell.getValue().patientNameProperty());
+        colDoctor.setCellValueFactory(cell -> cell.getValue().doctorNameProperty());
+        colDepartment.setCellValueFactory(cell -> cell.getValue().departmentProperty());
         colType.setCellValueFactory(cell -> cell.getValue().typeProperty());
         colStatus.setCellValueFactory(cell -> cell.getValue().statusProperty());
         colNotes.setCellValueFactory(cell -> cell.getValue().notesProperty());
+
         appointmentTable.setItems(scheduleList);
+    }
+
+    private void setupInputs() {
+        scheduleDatePicker.setValue(LocalDate.now());
+
+        comboScheduleView.getItems().addAll("Day View", "Week View");
+        comboScheduleView.setValue("Day View");
     }
 
     private void loadAppointments() {
         HospitalProfile hospital = userContext.getHospitalProfile();
+
         if (hospital == null || hospital.getUid() == null || hospital.getUid().isBlank()) {
             showAlert("Hospital Error", "Hospital account details could not be loaded.");
             return;
@@ -93,7 +98,7 @@ public class HospitalScheduleController implements Initializable {
                             Appointment::resolveAppointmentEpochMillis,
                             Comparator.nullsLast(Long::compareTo)
                     ));
-                    refreshTableForDate();
+                    refreshTable();
                 }))
                 .exceptionally(e -> {
                     Platform.runLater(() -> {
@@ -107,16 +112,21 @@ public class HospitalScheduleController implements Initializable {
 
     @FXML
     private void handleDateChange() {
-        refreshTableForDate();
+        refreshTable();
+    }
+
+    @FXML
+    private void handleViewModeChange() {
+        refreshTable();
     }
 
     @FXML
     private void onToday() {
         scheduleDatePicker.setValue(LocalDate.now());
-        refreshTableForDate();
+        refreshTable();
     }
 
-    private void refreshTableForDate() {
+    private void refreshTable() {
         LocalDate selectedDate = scheduleDatePicker.getValue();
         scheduleList.clear();
 
@@ -125,44 +135,80 @@ public class HospitalScheduleController implements Initializable {
             return;
         }
 
+        boolean weekView = "Week View".equalsIgnoreCase(comboScheduleView.getValue());
+
+        LocalDate weekStart = selectedDate.with(DayOfWeek.MONDAY);
+        LocalDate weekEnd = weekStart.plusDays(6);
+
+        if (weekView) {
+            scheduleTitleLabel.setText("Weekly Hospital Schedule");
+        } else {
+            scheduleTitleLabel.setText("Daily Hospital Schedule");
+        }
+
         for (Appointment appointment : allAppointments) {
             if (appointment == null || "CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
                 continue;
             }
 
             LocalDate appointmentDate = resolveAppointmentDate(appointment);
-            if (appointmentDate == null || !selectedDate.equals(appointmentDate)) {
+
+            if (appointmentDate == null) {
                 continue;
             }
 
+            if (weekView) {
+                if (appointmentDate.isBefore(weekStart) || appointmentDate.isAfter(weekEnd)) {
+                    continue;
+                }
+            } else {
+                if (!selectedDate.equals(appointmentDate)) {
+                    continue;
+                }
+            }
+
             Schedule schedule = new Schedule(
-                    formatAppointmentTime(appointment),
+                    formatAppointmentTime(appointment, weekView),
                     valueOrDefault(appointment.getPatientName(), "Unknown Patient"),
+                    valueOrDefault(appointment.getDoctorName(), "Unknown Doctor"),
+                    valueOrDefault(appointment.getHospitalDepartment(), "Unassigned"),
                     valueOrDefault(appointment.getReferralType(),
-                            valueOrDefault(appointment.getHospitalDepartment(),
-                                    valueOrDefault(appointment.getReason(), "Hospital visit"))),
+                            valueOrDefault(appointment.getReason(), "Hospital visit")),
                     valueOrDefault(appointment.getStatus(), "SCHEDULED"),
                     buildScheduleNotes(appointment)
             );
+
             schedule.setSourceAppointment(appointment);
             scheduleList.add(schedule);
         }
 
         scheduleList.sort(Comparator.comparing(
-                schedule -> parseTime(schedule.getTime()),
-                Comparator.nullsLast(LocalTime::compareTo)
+                schedule -> {
+                    Appointment appointment = schedule.getSourceAppointment();
+                    return appointment == null ? null : appointment.resolveAppointmentEpochMillis();
+                },
+                Comparator.nullsLast(Long::compareTo)
         ));
 
         if (scheduleList.isEmpty()) {
-            scheduleSummaryLabel.setText("No appointments scheduled for " + selectedDate + ".");
+            if (weekView) {
+                scheduleSummaryLabel.setText("No appointments scheduled from " + weekStart + " to " + weekEnd + ".");
+            } else {
+                scheduleSummaryLabel.setText("No appointments scheduled for " + selectedDate + ".");
+            }
         } else {
-            scheduleSummaryLabel.setText("Showing " + scheduleList.size() + " hospital appointment(s) for " + selectedDate + ".");
+            if (weekView) {
+                scheduleSummaryLabel.setText("Showing " + scheduleList.size() + " appointment(s) from " + weekStart + " to " + weekEnd + ".");
+            } else {
+                scheduleSummaryLabel.setText("Showing " + scheduleList.size() + " appointment(s) for " + selectedDate + ".");
+            }
         }
     }
 
     @FXML
     private void handleReschedule() {
         Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+
         if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
             showAlert("No Selection", "Please select an appointment to reschedule.");
             return;
@@ -170,7 +216,6 @@ public class HospitalScheduleController implements Initializable {
 
         Appointment appointment = selectedSchedule.getSourceAppointment();
 
-        // Extract the service type to determine scheduling rules
         String serviceType = valueOrDefault(appointment.getReferralType(),
                 valueOrDefault(appointment.getHospitalDepartment(),
                         valueOrDefault(appointment.getReason(), "Hospital visit")));
@@ -185,11 +230,10 @@ public class HospitalScheduleController implements Initializable {
         DatePicker dialogDatePicker = new DatePicker(resolveAppointmentDate(appointment));
         ComboBox<String> timeComboBox = new ComboBox<>();
 
-        // Dynamically populate times based on the service type
         populateTimeComboBox(timeComboBox, serviceType);
 
         timeComboBox.setEditable(true);
-        timeComboBox.setValue(formatAppointmentTime(appointment));
+        timeComboBox.setValue(formatAppointmentTime(appointment, false));
 
         TextArea notesArea = new TextArea(valueOrDefault(appointment.getNotes(), ""));
         notesArea.setWrapText(true);
@@ -204,6 +248,7 @@ public class HospitalScheduleController implements Initializable {
                 new Label("Notes"),
                 notesArea
         );
+
         content.setPrefWidth(360);
         dialog.getDialogPane().setContent(content);
 
@@ -219,13 +264,13 @@ public class HospitalScheduleController implements Initializable {
             return;
         }
 
-        // Validate the selected time before applying changes
         if (!isTimeSlotValid(serviceType, selectedTime)) {
             showAlert("Invalid Time", serviceType + " appointments are only available between 8:00 AM and 8:00 PM.");
             return;
         }
 
         long appointmentEpoch = resolveEpochMillis(selectedDate, selectedTime);
+
         appointment.setAppointmentDate(selectedDate.toString());
         appointment.setAppointmentSlot(selectedTime);
         appointment.setAppointmentTime(selectedDate + " " + selectedTime);
@@ -268,6 +313,7 @@ public class HospitalScheduleController implements Initializable {
     @FXML
     private void handleSendPrescription() {
         Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+
         if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
             showAlert("No Patient Selected", "Please select a patient from the schedule to send a prescription.");
             return;
@@ -283,6 +329,7 @@ public class HospitalScheduleController implements Initializable {
     @FXML
     private void handleEditPatientProfile() {
         Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+
         if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
             showAlert("No Patient Selected", "Please select an appointment to open the patient profile.");
             return;
@@ -298,6 +345,7 @@ public class HospitalScheduleController implements Initializable {
     @FXML
     private void handleCancelSelected() {
         Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+
         if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
             showAlert("No Selection", "Please select an appointment to cancel.");
             return;
@@ -305,13 +353,12 @@ public class HospitalScheduleController implements Initializable {
 
         Appointment appointment = selectedSchedule.getSourceAppointment();
 
-        // Show confirmation dialog
         Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
         confirmDialog.setTitle("Confirm Cancellation");
         confirmDialog.setHeaderText("Are you sure?");
-        confirmDialog.setContentText("Are you sure you want to cancel the appointment with " +
-                appointment.getPatientName() + " on " + appointment.getAppointmentDate() +
-                " at " + appointment.getAppointmentSlot() + "?");
+        confirmDialog.setContentText("Are you sure you want to cancel the appointment with "
+                + appointment.getPatientName() + " on " + appointment.getAppointmentDate()
+                + " at " + appointment.getAppointmentSlot() + "?");
 
         if (confirmDialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
             return;
@@ -328,6 +375,7 @@ public class HospitalScheduleController implements Initializable {
                             "APPOINTMENT",
                             appointment.getAppointmentId()
                     );
+
                     loadAppointments();
                 }))
                 .exceptionally(e -> {
@@ -339,6 +387,7 @@ public class HospitalScheduleController implements Initializable {
     @FXML
     private void handleMarkComplete() {
         Schedule selectedSchedule = appointmentTable.getSelectionModel().getSelectedItem();
+
         if (selectedSchedule == null || selectedSchedule.getSourceAppointment() == null) {
             showAlert("No Selection", "Please select an appointment to mark complete.");
             return;
@@ -346,60 +395,14 @@ public class HospitalScheduleController implements Initializable {
 
         Appointment appointment = selectedSchedule.getSourceAppointment();
 
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Complete Appointment");
-        dialog.setHeaderText("Add hospital findings for " + valueOrDefault(appointment.getPatientName(), "this patient"));
-
-        ButtonType completeType = new ButtonType("Save Results", ButtonBar.ButtonData.OK_DONE);
-        ButtonType completeAndEditType = new ButtonType("Save and Edit Profile", ButtonBar.ButtonData.OTHER);
-        dialog.getDialogPane().getButtonTypes().addAll(completeType, completeAndEditType, ButtonType.CANCEL);
-
-        TextArea findingsArea = new TextArea(valueOrDefault(appointment.getHospitalFindings(), ""));
-        findingsArea.setPromptText("Summarize the visit or treatment.");
-        findingsArea.setWrapText(true);
-        findingsArea.setPrefRowCount(4);
-
-        TextArea resultsArea = new TextArea(valueOrDefault(appointment.getDiagnosticResults(), ""));
-        resultsArea.setPromptText("Add diagnostic results, imaging findings, or lab notes.");
-        resultsArea.setWrapText(true);
-        resultsArea.setPrefRowCount(6);
-
-        VBox content = new VBox(10,
-                new Label("Hospital findings"),
-                findingsArea,
-                new Label("Diagnostic results"),
-                resultsArea
-        );
-        content.setPrefWidth(420);
-        dialog.getDialogPane().setContent(content);
-
-        ButtonType result = dialog.showAndWait().orElse(ButtonType.CANCEL);
-        if (result == ButtonType.CANCEL) {
-            return;
-        }
-
-        String findings = findingsArea.getText() == null ? "" : findingsArea.getText().trim();
-        String diagnosticResults = resultsArea.getText() == null ? "" : resultsArea.getText().trim();
-
-        if (findings.isBlank() && diagnosticResults.isBlank()) {
-            showAlert("Validation Error", "Add hospital findings or diagnostic results before completing the appointment.");
-            return;
-        }
-
-        appointment.setHospitalFindings(findings);
-        appointment.setDiagnosticResults(diagnosticResults);
-        appointment.setDiagnosticResultsUploadedAt(System.currentTimeMillis());
-        appointment.setVisitSummary(findings.isBlank() ? diagnosticResults : findings);
         appointment.setStatus("COMPLETED");
         appointment.setCompletedAt(System.currentTimeMillis());
 
-        firebaseService.publishHospitalDiagnosticResults(appointment)
+        firebaseService.updateAppointment(appointment)
                 .thenRun(() -> Platform.runLater(() -> {
-                    if (result == completeAndEditType) {
-                        openPatientContext(appointment.getPatientUid(), "patient-profile-view.fxml", "Patient Profile");
-                    } else {
-                        loadAppointments();
-                    }
+                    userContext.setSelectedAppointment(appointment);
+                    userContext.setSelectedPatientUid(appointment.getPatientUid());
+                    SceneRouter.go("hospital-diagnostic.fxml", "Upload Diagnostic Results");
                 }))
                 .exceptionally(e -> {
                     Platform.runLater(() -> showAlert("Update Error", cleanErrorMessage(e)));
@@ -414,6 +417,7 @@ public class HospitalScheduleController implements Initializable {
                         showAlert("Patient Error", "The selected patient could not be loaded.");
                         return;
                     }
+
                     userContext.setSelectedPatientProfile(profile);
                     userContext.setSelectedPatientUid(profile.getUid());
                     SceneRouter.go(destinationFxml, title);
@@ -433,11 +437,11 @@ public class HospitalScheduleController implements Initializable {
             try {
                 return LocalDate.parse(appointment.getAppointmentDate());
             } catch (Exception ignored) {
-                // Fall back to epoch parsing below.
             }
         }
 
         Long epoch = appointment.resolveAppointmentEpochMillis();
+
         if (epoch == null) {
             return null;
         }
@@ -449,9 +453,11 @@ public class HospitalScheduleController implements Initializable {
 
     private long resolveEpochMillis(LocalDate date, String time) {
         LocalTime localTime = parseTime(time);
+
         if (localTime == null) {
             throw new IllegalArgumentException("Invalid appointment time: " + time);
         }
+
         LocalDateTime localDateTime = LocalDateTime.of(date, localTime);
         return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
@@ -468,23 +474,31 @@ public class HospitalScheduleController implements Initializable {
         }
     }
 
-    private String formatAppointmentTime(Appointment appointment) {
+    private String formatAppointmentTime(Appointment appointment, boolean weekView) {
+        Long epoch = appointment.resolveAppointmentEpochMillis();
+
+        if (epoch != null) {
+            LocalDateTime dateTime = LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(epoch),
+                    ZoneId.systemDefault()
+            );
+
+            return weekView
+                    ? dateTime.format(WEEK_TIME_FORMAT)
+                    : dateTime.format(TIME_FORMAT);
+        }
+
         if (appointment.getAppointmentSlot() != null && !appointment.getAppointmentSlot().isBlank()) {
             return appointment.getAppointmentSlot();
         }
 
-        Long epoch = appointment.resolveAppointmentEpochMillis();
-        if (epoch == null) {
-            return "";
-        }
-
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneId.systemDefault())
-                .format(TIME_FORMAT);
+        return "";
     }
 
     private String buildScheduleNotes(Appointment appointment) {
         if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             String summary = valueOrDefault(appointment.getHospitalFindings(), appointment.getVisitSummary());
+
             if (!summary.isBlank()) {
                 return summary;
             }
@@ -497,12 +511,57 @@ public class HospitalScheduleController implements Initializable {
         return valueOrDefault(appointment.getNotes(), "");
     }
 
+    private boolean isTimeSlotValid(String serviceType, String requestedTimeString) {
+        LocalTime requestedTime = parseTime(requestedTimeString);
+
+        if (requestedTime == null) {
+            return false;
+        }
+
+        if (serviceType != null && serviceType.equalsIgnoreCase("Emergency Care")) {
+            return true;
+        }
+
+        LocalTime openTime = LocalTime.of(8, 0);
+        LocalTime closeTime = LocalTime.of(20, 0);
+
+        return !requestedTime.isBefore(openTime) && !requestedTime.isAfter(closeTime);
+    }
+
+    private void populateTimeComboBox(ComboBox<String> timeCombo, String serviceType) {
+        timeCombo.getItems().clear();
+
+        LocalTime startTime;
+        LocalTime endTime;
+
+        if (serviceType != null && serviceType.equalsIgnoreCase("Emergency Care")) {
+            startTime = LocalTime.MIDNIGHT;
+            endTime = LocalTime.of(23, 30);
+        } else {
+            startTime = LocalTime.of(8, 0);
+            endTime = LocalTime.of(20, 0);
+        }
+
+        LocalTime currentTime = startTime;
+
+        while (!currentTime.isAfter(endTime)) {
+            timeCombo.getItems().add(currentTime.format(TIME_FORMAT));
+
+            if (currentTime.equals(LocalTime.of(23, 30))) {
+                break;
+            }
+
+            currentTime = currentTime.plusMinutes(30);
+        }
+    }
+
     private String cleanErrorMessage(Throwable throwable) {
         if (throwable == null) {
             return "Unknown error";
         }
 
         Throwable cause = throwable;
+
         while (cause.getCause() != null) {
             cause = cause.getCause();
         }
@@ -523,53 +582,20 @@ public class HospitalScheduleController implements Initializable {
         alert.showAndWait();
     }
 
-    // --- NEW VALIDATION METHODS ADDED BELOW ---
-
-    private boolean isTimeSlotValid(String serviceType, String requestedTimeString) {
-        LocalTime requestedTime = parseTime(requestedTimeString);
-        if (requestedTime == null) return false;
-
-        // Emergency Care is available 24/7
-        if (serviceType != null && serviceType.equalsIgnoreCase("Emergency Care")) {
-            return true;
-        }
-
-        // All other services are restricted to 8:00 AM - 8:00 PM (20:00)
-        LocalTime openTime = LocalTime.of(8, 0);
-        LocalTime closeTime = LocalTime.of(20, 0);
-
-        // Returns true if the time is between 8 AM and 8 PM
-        return !requestedTime.isBefore(openTime) && !requestedTime.isAfter(closeTime);
+    @FXML private void onDashboard() {
+        SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard");
     }
 
-    private void populateTimeComboBox(ComboBox<String> timeCombo, String serviceType) {
-        timeCombo.getItems().clear();
-
-        LocalTime startTime;
-        LocalTime endTime;
-
-        if (serviceType != null && serviceType.equalsIgnoreCase("Emergency Care")) {
-            startTime = LocalTime.MIDNIGHT; // 00:00
-            endTime = LocalTime.of(23, 30); // 11:30 PM
-        } else {
-            startTime = LocalTime.of(8, 0); // 8:00 AM
-            endTime = LocalTime.of(20, 0);  // 8:00 PM
-        }
-
-        // Populate dropdown in 30-minute increments, formatting to string to match existing data types
-        LocalTime currentTime = startTime;
-        while (!currentTime.isAfter(endTime)) {
-            timeCombo.getItems().add(currentTime.format(TIME_FORMAT));
-            // Break to avoid infinite loop if dealing with 24/7 rollover
-            if (currentTime.equals(LocalTime.of(23, 30))) break;
-            currentTime = currentTime.plusMinutes(30);
-        }
+    @FXML private void onPatients() {
+        SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients");
     }
 
-    @FXML private void onDashboard() { SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard"); }
-    @FXML private void onPatients() { SceneRouter.go("hospital-patients-view.fxml", "Hospital Patients"); }
-    @FXML private void onSchedule() {}
-    @FXML private void onProfile() { SceneRouter.go("hospital-profile-view.fxml", "Hospital Profile"); }
+    @FXML private void onSchedule() {
+    }
+
+    @FXML private void onProfile() {
+        SceneRouter.go("hospital-profile-view.fxml", "Hospital Profile");
+    }
 
     @FXML
     private void onLogout() {

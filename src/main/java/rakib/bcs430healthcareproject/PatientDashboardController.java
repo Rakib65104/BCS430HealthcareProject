@@ -317,7 +317,7 @@ public class PatientDashboardController {
     @FXML
     private void onLogout() {
         userContext.clearUserData();
-        SceneRouter.go("pharmacy-login-view.fxml", "Login");
+        SceneRouter.go("login-view.fxml", "Login");
     }
 
     private void setupNotificationBellAnimation() {

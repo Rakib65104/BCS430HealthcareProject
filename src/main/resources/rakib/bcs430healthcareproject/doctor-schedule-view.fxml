@@ -63,21 +63,37 @@
 
             <VBox spacing="16.0" HBox.hgrow="ALWAYS">
 
-                <VBox spacing="6.0"
+                <VBox spacing="8.0"
                       style="-fx-background-color: linear-gradient(to right, #0F766E, #14B8A6); -fx-background-radius: 14; -fx-padding: 18;">
-                    <Label text="Daily Schedule"
+
+                    <Label fx:id="lblScheduleTitle"
+                           text="Daily Schedule"
                            style="-fx-text-fill: white; -fx-font-size: 20; -fx-font-weight: bold;" />
-                    <Label text="Review appointments, update visits, and manage your day from one place."
+
+                    <Label text="Review appointments, update visits, and manage your day or full week from one place."
                            style="-fx-text-fill: #CCFBF1; -fx-font-size: 13;" />
 
                     <HBox alignment="CENTER_LEFT" spacing="10">
+                        <Label text="View:"
+                               style="-fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold;" />
+
+                        <ComboBox fx:id="comboScheduleView"
+                                  onAction="#handleViewModeChange"
+                                  prefWidth="140"
+                                  style="-fx-background-radius: 8;" />
+
                         <Label text="Date:"
                                style="-fx-text-fill: white; -fx-font-size: 13; -fx-font-weight: bold;" />
+
                         <DatePicker fx:id="scheduleDatePicker"
                                     onAction="#handleDateChange"
                                     prefWidth="170"
                                     style="-fx-background-radius: 8;" />
                     </HBox>
+
+                    <Label fx:id="lblDateHint"
+                           text="Showing today's appointments"
+                           style="-fx-text-fill: #E0F2FE; -fx-font-size: 12;" />
                 </VBox>
 
                 <VBox spacing="12.0"
@@ -92,7 +108,7 @@
                                prefHeight="360.0"
                                style="-fx-background-radius: 10; -fx-border-color: #E2E8F0; -fx-border-radius: 10;">
                         <columns>
-                            <TableColumn fx:id="colTime" prefWidth="90.0" text="Time" />
+                            <TableColumn fx:id="colTime" prefWidth="120.0" text="Date / Time" />
                             <TableColumn fx:id="colPatient" prefWidth="180.0" text="Patient Name" />
                             <TableColumn fx:id="colType" prefWidth="120.0" text="Type" />
                             <TableColumn fx:id="colStatus" prefWidth="110.0" text="Status" />

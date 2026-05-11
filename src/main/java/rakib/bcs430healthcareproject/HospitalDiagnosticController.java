@@ -102,7 +102,9 @@ public class HospitalDiagnosticController {
             @Override
             protected void updateItem(Appointment appointment, boolean empty) {
                 super.updateItem(appointment, empty);
-                setText(empty || appointment == null ? "Choose a scheduled hospital appointment" : formatAppointmentOption(appointment));
+                setText(empty || appointment == null
+                        ? "Choose a scheduled hospital appointment"
+                        : formatAppointmentOption(appointment));
             }
         });
 
@@ -132,7 +134,9 @@ public class HospitalDiagnosticController {
     }
 
     private void populateAppointments(List<Appointment> appointments) {
-        if (appointmentComboBox == null) return;
+        if (appointmentComboBox == null) {
+            return;
+        }
 
         appointmentComboBox.getItems().clear();
 
@@ -149,6 +153,24 @@ public class HospitalDiagnosticController {
 
         appointmentComboBox.getItems().addAll(availableAppointments);
 
+        Appointment selectedFromSchedule = userContext.getSelectedAppointment();
+
+        if (selectedFromSchedule != null && selectedFromSchedule.getAppointmentId() != null) {
+            for (Appointment appointment : availableAppointments) {
+                if (selectedFromSchedule.getAppointmentId().equals(appointment.getAppointmentId())) {
+                    appointmentComboBox.setValue(appointment);
+                    updateAppointmentPreview(appointment);
+
+                    if (publishButton != null) {
+                        publishButton.setDisable(false);
+                    }
+
+                    setSuccess("Appointment selected. Add diagnostic results to finish completion.");
+                    return;
+                }
+            }
+        }
+
         if (availableAppointments.isEmpty()) {
             setError("No eligible hospital appointments found.");
             clearAppointmentPreview();
@@ -158,9 +180,18 @@ public class HospitalDiagnosticController {
     }
 
     private boolean isUsableAppointment(Appointment appointment) {
-        if (appointment == null) return false;
-        if (appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) return false;
-        if (appointment.getDoctorUid() == null || appointment.getDoctorUid().isBlank()) return false;
+        if (appointment == null) {
+            return false;
+        }
+
+        if (appointment.getPatientUid() == null || appointment.getPatientUid().isBlank()) {
+            return false;
+        }
+
+        if (appointment.getDoctorUid() == null || appointment.getDoctorUid().isBlank()) {
+            return false;
+        }
+
         return appointment.getStatus() == null || !appointment.getStatus().equalsIgnoreCase("CANCELLED");
     }
 
@@ -173,7 +204,8 @@ public class HospitalDiagnosticController {
         setLabelText(patientNameLabel, valueOrDefault(appointment.getPatientName(), "Unknown Patient"));
         setLabelText(doctorNameLabel, valueOrDefault(appointment.getDoctorName(), "Unknown Doctor"));
         setLabelText(appointmentDateLabel, formatAppointmentTime(appointment));
-        setLabelText(reasonLabel, valueOrDefault(appointment.getReason(), "No reason provided."));
+        setLabelText(reasonLabel, valueOrDefault(appointment.getReason(),
+                valueOrDefault(appointment.getReferralType(), "No reason provided.")));
 
         if (reportTitleField != null && reportTitleField.getText().isBlank()) {
             reportTitleField.setText(valueOrDefault(appointment.getReferralType(), "Hospital Diagnostic Report"));
@@ -194,9 +226,17 @@ public class HospitalDiagnosticController {
         setLabelText(appointmentDateLabel, "No appointment selected");
         setLabelText(reasonLabel, "No appointment selected");
 
-        if (reportTitleField != null) reportTitleField.clear();
-        if (hospitalFindingsTextArea != null) hospitalFindingsTextArea.clear();
-        if (diagnosticResultsTextArea != null) diagnosticResultsTextArea.clear();
+        if (reportTitleField != null) {
+            reportTitleField.clear();
+        }
+
+        if (hospitalFindingsTextArea != null) {
+            hospitalFindingsTextArea.clear();
+        }
+
+        if (diagnosticResultsTextArea != null) {
+            diagnosticResultsTextArea.clear();
+        }
     }
 
     @FXML
@@ -237,12 +277,15 @@ public class HospitalDiagnosticController {
         selectedAppointment.setHospitalFindings(findings);
         selectedAppointment.setDiagnosticResults(results);
         selectedAppointment.setDiagnosticResultsUploadedAt(System.currentTimeMillis());
+        selectedAppointment.setStatus("COMPLETED");
+        selectedAppointment.setCompletedAt(System.currentTimeMillis());
 
         publishButton.setDisable(true);
         setLabelText(statusLabel, "Publishing diagnostic results to shared report hub...");
 
         firebaseService.publishHospitalDiagnosticResults(selectedAppointment)
                 .thenRun(() -> Platform.runLater(() -> {
+                    userContext.clearSelectedAppointment();
                     setSuccess("Diagnostic report published successfully.");
                     showInfo("Success", "Diagnostic report is now visible to hospital, doctor, and patient.");
                     loadHospitalAppointments();
@@ -259,7 +302,7 @@ public class HospitalDiagnosticController {
 
     @FXML
     private void onBack() {
-        SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Dashboard");
+        SceneRouter.go("hospital-dashboard-view.fxml", "Hospital Schedule");
     }
 
     @FXML
@@ -271,6 +314,8 @@ public class HospitalDiagnosticController {
         return valueOrDefault(appointment.getPatientName(), "Unknown Patient")
                 + " • "
                 + valueOrDefault(appointment.getDoctorName(), "Unknown Doctor")
+                + " • "
+                + valueOrDefault(appointment.getHospitalDepartment(), "Department")
                 + " • "
                 + formatAppointmentTime(appointment);
     }
@@ -297,6 +342,7 @@ public class HospitalDiagnosticController {
 
     private void setError(String message) {
         setLabelText(statusLabel, message);
+
         if (statusLabel != null) {
             statusLabel.setStyle("-fx-text-fill:#B91C1C; -fx-font-size:12; -fx-font-weight:bold;");
         }
@@ -304,13 +350,16 @@ public class HospitalDiagnosticController {
 
     private void setSuccess(String message) {
         setLabelText(statusLabel, message);
+
         if (statusLabel != null) {
             statusLabel.setStyle("-fx-text-fill:#047857; -fx-font-size:12; -fx-font-weight:bold;");
         }
     }
 
     private void setLabelText(Label label, String text) {
-        if (label != null) label.setText(text);
+        if (label != null) {
+            label.setText(text);
+        }
     }
 
     private String valueOrDefault(String value, String fallback) {
@@ -318,12 +367,22 @@ public class HospitalDiagnosticController {
     }
 
     private String cleanError(Throwable throwable) {
-        if (throwable == null) return "Unknown error.";
-        String message = throwable.getMessage();
-        if (message == null && throwable.getCause() != null) {
-            message = throwable.getCause().getMessage();
+        if (throwable == null) {
+            return "Unknown error.";
         }
-        if (message == null) return "Unknown error.";
+
+        Throwable cause = throwable;
+
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+
+        String message = cause.getMessage();
+
+        if (message == null) {
+            return "Unknown error.";
+        }
+
         return message.replace("java.lang.RuntimeException:", "").trim();
     }
 

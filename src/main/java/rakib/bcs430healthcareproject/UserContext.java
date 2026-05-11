@@ -18,6 +18,9 @@ public class UserContext {
     private String selectedPatientUid;
     private PatientProfile selectedPatientProfile;
 
+    // For passing selected appointments between screens
+    private Appointment selectedAppointment;
+
     private UserContext() {
     }
 
@@ -74,6 +77,7 @@ public class UserContext {
         this.selectedDoctor = null;
         this.selectedPatientUid = null;
         this.selectedPatientProfile = null;
+        this.selectedAppointment = null;
     }
 
     public String getUid() {
@@ -216,5 +220,17 @@ public class UserContext {
     public void clearSelectedPatient() {
         this.selectedPatientUid = null;
         this.selectedPatientProfile = null;
+    }
+
+    public void setSelectedAppointment(Appointment selectedAppointment) {
+        this.selectedAppointment = selectedAppointment;
+    }
+
+    public Appointment getSelectedAppointment() {
+        return selectedAppointment;
+    }
+
+    public void clearSelectedAppointment() {
+        this.selectedAppointment = null;
     }
 }

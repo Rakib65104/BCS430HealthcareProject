@@ -1,10 +1,10 @@
 package rakib.bcs430healthcareproject;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
-import javafx.application.Platform;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -53,6 +53,7 @@ public class HospitalDashboardController {
         firebaseService.getAppointmentsForHospital(hospitalUid)
                 .thenCombine(firebaseService.getPatientsForHospital(hospitalUid), (appointments, patients) -> {
                     List<Doctor> hospitalDoctors;
+
                     try {
                         hospitalDoctors = getDoctorsForHospital(hospitalUid);
                     } catch (Exception e) {
@@ -95,7 +96,9 @@ public class HospitalDashboardController {
         return hospitalDoctors;
     }
 
-    private void updateStats(List<PatientProfile> patients, List<Appointment> appointments, List<Doctor> hospitalDoctors) {
+    private void updateStats(List<PatientProfile> patients,
+                             List<Appointment> appointments,
+                             List<Doctor> hospitalDoctors) {
         Set<String> uniquePatientIds = new HashSet<>();
         Set<String> uniqueDepartments = new HashSet<>();
 
@@ -111,7 +114,7 @@ public class HospitalDashboardController {
                     uniquePatientIds.add(appointment.getPatientUid());
                 }
 
-                String department = appointment.getDepartmentName();
+                String department = valueOrDefault(appointment.getDepartmentName(), appointment.getHospitalDepartment());
                 if (department != null && !department.isBlank()) {
                     uniqueDepartments.add(department.trim().toLowerCase());
                 }
@@ -122,13 +125,28 @@ public class HospitalDashboardController {
             }
         }
 
+        if (hospitalDoctors != null) {
+            for (Doctor doctor : hospitalDoctors) {
+                if (doctor == null) {
+                    continue;
+                }
+
+                String department = doctor.getDepartment();
+                if (department != null && !department.isBlank()) {
+                    uniqueDepartments.add(department.trim().toLowerCase());
+                }
+            }
+        }
+
         setLabelText(totalPatientsLabel, String.valueOf(uniquePatientIds.size()));
         setLabelText(appointmentsTodayLabel, String.valueOf(todayCount));
         setLabelText(departmentsLabel, String.valueOf(uniqueDepartments.size()));
     }
 
     private void loadPatientsPreview(List<Appointment> appointments) {
-        if (patientsListVBox == null) return;
+        if (patientsListVBox == null) {
+            return;
+        }
 
         patientsListVBox.getChildren().clear();
 
@@ -162,6 +180,7 @@ public class HospitalDashboardController {
         }
 
         int shown = 0;
+
         for (Appointment appointment : uniquePatientAppointments.values()) {
             patientsListVBox.getChildren().add(buildDepartmentPatientCard(appointment));
             shown++;
@@ -173,7 +192,9 @@ public class HospitalDashboardController {
     }
 
     private void loadSchedulePreview(List<Appointment> appointments) {
-        if (scheduleListVBox == null) return;
+        if (scheduleListVBox == null) {
+            return;
+        }
 
         scheduleListVBox.getChildren().clear();
 
@@ -192,11 +213,14 @@ public class HospitalDashboardController {
                 .collect(Collectors.toList());
 
         int shown = 0;
+
         for (Appointment appointment : upcomingAppointments) {
             scheduleListVBox.getChildren().add(buildAppointmentCard(appointment));
             shown++;
 
-            if (shown >= 5) break;
+            if (shown >= 5) {
+                break;
+            }
         }
 
         if (shown == 0) {
@@ -230,10 +254,10 @@ public class HospitalDashboardController {
         Label nameLabel = new Label(valueOrDefault(appointment.getPatientName(), "Unnamed Patient"));
         nameLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;");
 
-        Label deptLabel = new Label("Department: " + valueOrDefault(appointment.getDepartmentName(), "General"));
+        Label deptLabel = new Label("Department: " + valueOrDefault(appointment.getDepartmentName(), appointment.getHospitalDepartment()));
         deptLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12; -fx-font-weight: bold;");
 
-        Label doctorLabel = new Label("Authorized by Dr. " + valueOrDefault(appointment.getDoctorName(), "Unknown"));
+        Label doctorLabel = new Label("Doctor: " + valueOrDefault(appointment.getDoctorName(), "Unknown"));
         doctorLabel.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
 
         card.getChildren().addAll(nameLabel, deptLabel, doctorLabel);
@@ -248,8 +272,11 @@ public class HospitalDashboardController {
         Label patientLabel = new Label(valueOrDefault(appointment.getPatientName(), "Unknown Patient"));
         patientLabel.setStyle("-fx-text-fill: #0F766E; -fx-font-size: 14; -fx-font-weight: bold;");
 
-        Label departmentLabel = new Label("Department: " + valueOrDefault(appointment.getDepartmentName(), "General"));
+        Label departmentLabel = new Label("Department: " + valueOrDefault(appointment.getDepartmentName(), appointment.getHospitalDepartment()));
         departmentLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12; -fx-font-weight: bold;");
+
+        Label doctorLabel = new Label("Doctor: " + valueOrDefault(appointment.getDoctorName(), "Unknown"));
+        doctorLabel.setStyle("-fx-text-fill: #64748B; -fx-font-size: 12;");
 
         Label timeLabel = new Label(formatAppointmentTime(appointment));
         timeLabel.setStyle("-fx-text-fill: #334155; -fx-font-size: 12;");
@@ -257,7 +284,7 @@ public class HospitalDashboardController {
         Label statusLabel = new Label(valueOrDefault(appointment.getStatus(), "SCHEDULED"));
         statusLabel.setStyle("-fx-text-fill: #166534; -fx-font-size: 11; -fx-font-weight: bold;");
 
-        card.getChildren().addAll(patientLabel, departmentLabel, timeLabel, statusLabel);
+        card.getChildren().addAll(patientLabel, departmentLabel, doctorLabel, timeLabel, statusLabel);
         return card;
     }
 
@@ -281,6 +308,7 @@ public class HospitalDashboardController {
                 if (appointment.getAppointmentDate() != null && appointment.getAppointmentSlot() != null) {
                     return appointment.getAppointmentDate() + " • " + appointment.getAppointmentSlot();
                 }
+
                 return valueOrDefault(appointment.getAppointmentTime(), "Time not available");
             }
 
@@ -295,7 +323,10 @@ public class HospitalDashboardController {
     private boolean isToday(Appointment appointment) {
         try {
             Long millis = appointment.resolveAppointmentEpochMillis();
-            if (millis == null) return false;
+
+            if (millis == null) {
+                return false;
+            }
 
             LocalDate appointmentDate = Instant.ofEpochMilli(millis)
                     .atZone(ZoneId.systemDefault())
@@ -308,7 +339,8 @@ public class HospitalDashboardController {
     }
 
     private boolean isCancelled(Appointment appointment) {
-        return appointment.getStatus() != null && appointment.getStatus().equalsIgnoreCase("CANCELLED");
+        return appointment.getStatus() != null
+                && appointment.getStatus().equalsIgnoreCase("CANCELLED");
     }
 
     private void loadEmptyState() {
@@ -343,6 +375,11 @@ public class HospitalDashboardController {
     }
 
     @FXML
+    private void onMedicalRecords() {
+        SceneRouter.go("hospital-medical-records.fxml", "Hospital Medical Records");
+    }
+
+    @FXML
     private void onUploadResults() {
         SceneRouter.go("hospital-diagnostic.fxml", "Upload Diagnostic Results");
     }
@@ -364,7 +401,9 @@ public class HospitalDashboardController {
     }
 
     private void setLabelText(Label label, String text) {
-        if (label != null) label.setText(text);
+        if (label != null) {
+            label.setText(text);
+        }
     }
 
     private String valueOrDefault(String value, String fallback) {
@@ -376,7 +415,9 @@ public class HospitalDashboardController {
         private final List<PatientProfile> patients;
         private final List<Doctor> doctors;
 
-        private DashboardData(List<Appointment> appointments, List<PatientProfile> patients, List<Doctor> doctors) {
+        private DashboardData(List<Appointment> appointments,
+                              List<PatientProfile> patients,
+                              List<Doctor> doctors) {
             this.appointments = appointments;
             this.patients = patients;
             this.doctors = doctors;
